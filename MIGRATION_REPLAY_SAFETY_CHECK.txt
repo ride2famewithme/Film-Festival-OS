@@ -1,0 +1,88 @@
+===== MIGRATION REPLAY SAFETY CHECK 012–017 =====
+
+CHECK 1 — Migration files order
+supabase/migrations/20260907_010_waiver_discount_control_centre_v2.sql
+supabase/migrations/20260907_011_waiver_enforcement_hard_controls.sql
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql
+supabase/migrations/20260907_013_submitter_identity_waiver_enforcement.sql
+supabase/migrations/20260907_014_jury_governance_foundation.sql
+supabase/migrations/20260907_015_jury_scoring_weighted_results.sql
+supabase/migrations/20260907_016_decisions_awards_hard_control.sql
+supabase/migrations/20260907_017_official_laurel_output.sql
+
+CHECK 2 — References inside reconstructed migrations
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:create table if not exists public.submitter_identities (
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:  tenant_id uuid not null references public.tenants(id) on delete cascade,
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:  auth_user_id uuid references auth.users(id) on delete set null,
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:create table if not exists public.submission_parties (
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:  tenant_id uuid not null references public.tenants(id) on delete cascade,
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:    references public.submissions(id) on delete cascade,
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:    references public.submitter_identities(id) on delete cascade,
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:create table if not exists public.restricted_parties (
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:  tenant_id uuid not null references public.tenants(id) on delete cascade,
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:create table if not exists public.identity_verification_events (
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:  tenant_id uuid not null references public.tenants(id) on delete cascade,
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:    references public.submitter_identities(id) on delete cascade,
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:create table if not exists public.submission_risk_events (
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:  tenant_id uuid not null references public.tenants(id) on delete cascade,
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:    references public.submissions(id) on delete cascade,
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:alter table public.submissions
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:  references public.submitter_identities(id)
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:alter table public.submitter_identities enable row level security;
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:alter table public.submission_parties enable row level security;
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:alter table public.restricted_parties enable row level security;
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:alter table public.identity_verification_events enable row level security;
+supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql:alter table public.submission_risk_events enable row level security;
+supabase/migrations/20260907_013_submitter_identity_waiver_enforcement.sql:alter table public.benefit_code_redemptions
+supabase/migrations/20260907_013_submitter_identity_waiver_enforcement.sql:references public.submitter_identities(id)
+supabase/migrations/20260907_013_submitter_identity_waiver_enforcement.sql:create or replace function
+supabase/migrations/20260907_014_jury_governance_foundation.sql:create table if not exists public.jury_governance_settings (
+supabase/migrations/20260907_014_jury_governance_foundation.sql:    references public.tenants(id) on delete cascade,
+supabase/migrations/20260907_014_jury_governance_foundation.sql:create table if not exists public.jury_panel_members (
+supabase/migrations/20260907_014_jury_governance_foundation.sql:    references public.tenants(id) on delete cascade,
+supabase/migrations/20260907_014_jury_governance_foundation.sql:    references auth.users(id) on delete set null,
+supabase/migrations/20260907_014_jury_governance_foundation.sql:    references auth.users(id) on delete set null,
+supabase/migrations/20260907_014_jury_governance_foundation.sql:alter table public.jury_assignments
+supabase/migrations/20260907_014_jury_governance_foundation.sql:  references public.jury_panel_members(id)
+supabase/migrations/20260907_014_jury_governance_foundation.sql:alter table public.jury_assignments
+supabase/migrations/20260907_014_jury_governance_foundation.sql:alter table public.jury_assignments
+supabase/migrations/20260907_014_jury_governance_foundation.sql:alter table public.jury_assignments
+supabase/migrations/20260907_014_jury_governance_foundation.sql:create table if not exists public.jury_integrity_events (
+supabase/migrations/20260907_014_jury_governance_foundation.sql:    references public.tenants(id) on delete cascade,
+supabase/migrations/20260907_014_jury_governance_foundation.sql:    references public.submissions(id) on delete set null,
+supabase/migrations/20260907_014_jury_governance_foundation.sql:    references public.jury_panel_members(id) on delete set null,
+supabase/migrations/20260907_014_jury_governance_foundation.sql:    references auth.users(id) on delete set null,
+supabase/migrations/20260907_014_jury_governance_foundation.sql:alter table public.jury_governance_settings enable row level security;
+supabase/migrations/20260907_014_jury_governance_foundation.sql:alter table public.jury_panel_members enable row level security;
+supabase/migrations/20260907_014_jury_governance_foundation.sql:alter table public.jury_integrity_events enable row level security;
+supabase/migrations/20260907_014_jury_governance_foundation.sql:create or replace function
+supabase/migrations/20260907_015_jury_scoring_weighted_results.sql:create table if not exists public.jury_submission_results (
+supabase/migrations/20260907_015_jury_scoring_weighted_results.sql:    references public.submissions(id) on delete cascade,
+supabase/migrations/20260907_015_jury_scoring_weighted_results.sql:    references public.tenants(id) on delete cascade,
+supabase/migrations/20260907_015_jury_scoring_weighted_results.sql:    references auth.users(id) on delete set null
+supabase/migrations/20260907_015_jury_scoring_weighted_results.sql:alter table public.jury_submission_results
+supabase/migrations/20260907_015_jury_scoring_weighted_results.sql:create or replace function
+supabase/migrations/20260907_015_jury_scoring_weighted_results.sql:create or replace function
+supabase/migrations/20260907_015_jury_scoring_weighted_results.sql:create or replace function
+supabase/migrations/20260907_015_jury_scoring_weighted_results.sql:create or replace function
+supabase/migrations/20260907_015_jury_scoring_weighted_results.sql:create or replace function
+supabase/migrations/20260907_016_decisions_awards_hard_control.sql:create or replace function
+supabase/migrations/20260907_017_official_laurel_output.sql:create table if not exists public.laurel_outputs (
+supabase/migrations/20260907_017_official_laurel_output.sql:    references public.tenants(id) on delete cascade,
+supabase/migrations/20260907_017_official_laurel_output.sql:    references public.awards(id) on delete cascade,
+supabase/migrations/20260907_017_official_laurel_output.sql:    references public.submissions(id) on delete cascade,
+supabase/migrations/20260907_017_official_laurel_output.sql:    references auth.users(id) on delete set null,
+supabase/migrations/20260907_017_official_laurel_output.sql:alter table public.laurel_outputs
+supabase/migrations/20260907_017_official_laurel_output.sql:create or replace function
+
+CHECK 3 — Duplicate migration numbers
+20260907_010_waiver_discount_control_centre_v2.sql
+20260907_011_waiver_enforcement_hard_controls.sql
+20260907_012_external_submitter_identity_risk_foundation.sql
+20260907_013_submitter_identity_waiver_enforcement.sql
+20260907_014_jury_governance_foundation.sql
+20260907_015_jury_scoring_weighted_results.sql
+20260907_016_decisions_awards_hard_control.sql
+20260907_017_official_laurel_output.sql
+
+===== END SAFETY CHECK =====

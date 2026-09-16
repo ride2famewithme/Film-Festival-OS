@@ -1,0 +1,1 @@
+TEST/FIX #3 executed project source in isolated TypeScript/Node harnesses using the mock adapter and a test-only in-memory AsyncStorage shim. No production app files were modified to fake a runtime pass. Full Expo validation remains pending until dependencies can be installed in a network-enabled environment.
