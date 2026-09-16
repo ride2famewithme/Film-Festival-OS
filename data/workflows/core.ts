@@ -31,8 +31,14 @@ export async function updateRow(table: string, id: string, patch: Record<string,
   const ctx = await context(permission);
   const result = await db.from<any>(table).update(patch).eq('id', id).eq('tenant_id', ctx.tenantId);
   if (result.error) throw new Error(result.error.message);
+
+  const rows = result.data ?? [];
+  if (!rows.length) {
+    throw new Error(`No ${entityType} row was updated. Check tenant scope or database RLS.`);
+  }
+
   await writeAuditEvent(`${entityType}.updated`, entityType, id, { changed: Object.keys(patch) });
-  return (result.data ?? [])[0];
+  return rows[0];
 }
 
 export async function currentUserId() {

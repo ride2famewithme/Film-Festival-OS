@@ -11,7 +11,7 @@ export default function ContinuityScreen() {
     items={[
       { title: 'Critical Operations', detail: 'Services that must be restored first and their responsible owners.', icon: Workflow },
       { title: 'Tolerance & Recovery Targets', detail: 'Maximum tolerable disruption, recovery objectives and escalation thresholds.', icon: Activity },
-      { title: 'Backup & Restore', detail: 'Backup policy, retention, restore evidence and recovery checkpoints.', icon: Database },
+      { title: 'Backup & Restore', detail: 'Backup policy, retention, restore evidence and recovery checkpoints.', icon: Database, route: '/backup-evidence', badge: 'PRODUCTION' },
       { title: 'Continuity Playbooks', detail: 'Outage, cyber, payment, provider and communications response playbooks.', icon: LifeBuoy },
     ]}
   />;

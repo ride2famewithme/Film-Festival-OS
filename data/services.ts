@@ -29,7 +29,7 @@ export async function createTenantRow(table: string, values: Record<string, unkn
 export async function writeAuditEvent(action: string, entityType: string, entityId?: string, detail: Record<string, unknown> = {}) {
   const ctx = await getActiveContext();
   if (!ctx) return;
-  await db.from<any>('audit_events').insert({
+  const res = await db.from<any>('audit_events').insert({
     tenant_id: ctx.tenantId,
     actor_user_id: ctx.userId,
     action,
@@ -38,4 +38,8 @@ export async function writeAuditEvent(action: string, entityType: string, entity
     detail,
     created_at: new Date().toISOString(),
   });
+
+  if (res.error) {
+    throw new Error(`Audit event failed: ${res.error.message}`);
+  }
 }

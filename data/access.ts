@@ -25,7 +25,7 @@ export type Permission =
 
 const rolePermissions: Record<PlatformRole, Permission[]> = {
   platform_admin: ['tenant.read','tenant.manage','festival.manage','submission.manage','jury.manage','project.manage','risk.manage','audit.read','people.manage','moderation.manage','finance.manage','support.manage','health.manage','platform.configure'],
-  festival_owner: ['tenant.read','festival.manage','submission.manage','jury.manage','project.manage','risk.manage','people.manage','finance.manage','support.manage'],
+  festival_owner: ['tenant.read','festival.manage','submission.manage','jury.manage','project.manage','risk.manage','audit.read','people.manage','finance.manage','support.manage'],
   festival_staff: ['tenant.read','festival.manage','submission.manage','project.manage','support.manage'],
   juror: ['tenant.read','jury.review'],
   creator: ['tenant.read','project.manage'],

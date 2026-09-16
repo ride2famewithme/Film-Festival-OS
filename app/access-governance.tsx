@@ -12,6 +12,7 @@ export default function AccessGovernanceScreen() {
       { title: 'Role Catalogue', detail: 'Platform, franchise/operator, festival, staff, juror, creator and sponsor roles.', icon: Users },
       { title: 'Privileged Access', detail: 'Global HQ/admin privileges, MFA requirements, sensitive-action controls and re-authentication.', icon: LockKeyhole },
       { title: 'Access Reviews', detail: 'Periodic review, role expiry, dormant accounts, departures and emergency revocation.', icon: Activity },
+      { title: 'Emergency Suspension', detail: 'Immediately suspend or reactivate compromised membership access with audit evidence.', icon: LockKeyhole, route: '/emergency-access', badge: 'PRODUCTION' },
       { title: 'Segregation & Audit', detail: 'Conflict checks, separation of duties and traceable permission changes.', icon: ShieldCheck },
     ]}
   />;
