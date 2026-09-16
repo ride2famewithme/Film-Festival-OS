@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 
 import { WorkflowRegister } from '@/components/workflows/WorkflowRegister';
-import { updateRow } from '@/data/workflows/core';
 import { getActiveContext } from '@/data/session';
 import { can } from '@/data/access';
 import { requireSupabaseClient } from '@/data/supabase-client';
@@ -57,21 +56,35 @@ export default function People() {
   }, []);
 
   const advance = useCallback(
-    async (row: any) =>
-      updateRow(
-        'memberships',
-        String(row.id),
+    async (row: any) => {
+      const ctx = await getActiveContext();
+
+      if (!ctx) throw new Error('Authentication required');
+      if (!can(ctx.role, 'people.manage')) {
+        throw new Error('Permission denied');
+      }
+
+      const status =
+        row.status === 'suspended'
+          ? 'active'
+          : row.status === 'invited'
+            ? 'active'
+            : 'suspended';
+
+      const client = requireSupabaseClient();
+
+      const { data,error } = await client.rpc(
+        'set_membership_emergency_status',
         {
-          status:
-            row.status === 'invited'
-              ? 'active'
-              : row.status === 'active'
-                ? 'suspended'
-                : 'active',
-        },
-        'people.manage',
-        'membership'
-      ),
+          p_membership_id:String(row.id),
+          p_status:status,
+        }
+      );
+
+      if (error) throw new Error(error.message);
+
+      return data;
+    },
     []
   );
 

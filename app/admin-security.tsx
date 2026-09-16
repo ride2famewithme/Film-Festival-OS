@@ -30,7 +30,7 @@ const items = [
   },
   {
     title: 'Security Events',
-    badge: 'NEXT',
+    badge: 'PRODUCTION',
     subtitle: 'Suspicious access, lockouts and investigation records.',
     icon: ShieldAlert,
     route: '/incidents',
