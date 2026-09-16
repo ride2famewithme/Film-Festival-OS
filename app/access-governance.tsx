@@ -9,7 +9,7 @@ export default function AccessGovernanceScreen() {
     statusTitle="Least privilege by default"
     statusText="External operators, staff, jurors, sponsors and creators should receive only the permissions required for their role and tenant."
     items={[
-      { title: 'Role Catalogue', detail: 'Platform, franchise/operator, festival, staff, juror, creator and sponsor roles.', icon: Users },
+      { title: 'Role Catalogue', detail: 'Implemented roles, live tenant membership counts, permission matrix and segregation guidance.', icon: Users, route: '/role-catalogue', badge: 'PRODUCTION' },
       { title: 'Privileged Access', detail: 'Global HQ/admin privileges, MFA requirements, sensitive-action controls and re-authentication.', icon: LockKeyhole },
       { title: 'Access Reviews', detail: 'Periodic review, role expiry, dormant accounts, departures and emergency revocation.', icon: Activity, route: '/access-reviews', badge: 'PRODUCTION' },
       { title: 'Emergency Suspension', detail: 'Immediately suspend or reactivate compromised membership access with audit evidence.', icon: LockKeyhole, route: '/emergency-access', badge: 'PRODUCTION' },
