@@ -13,7 +13,7 @@ export default function AccessGovernanceScreen() {
       { title: 'Privileged Access', detail: 'Global HQ/admin privileges, MFA requirements, sensitive-action controls and re-authentication.', icon: LockKeyhole },
       { title: 'Access Reviews', detail: 'Periodic review, role expiry, dormant accounts, departures and emergency revocation.', icon: Activity, route: '/access-reviews', badge: 'PRODUCTION' },
       { title: 'Emergency Suspension', detail: 'Immediately suspend or reactivate compromised membership access with audit evidence.', icon: LockKeyhole, route: '/emergency-access', badge: 'PRODUCTION' },
-      { title: 'Segregation & Audit', detail: 'Conflict checks, separation of duties and traceable permission changes.', icon: ShieldCheck },
+      { title: 'Segregation & Audit', detail: 'Conflict checks, separation of duties and traceable permission changes.', icon: ShieldCheck, route: '/segregation-audit', badge: 'PRODUCTION' },
     ]}
   />;
 }
