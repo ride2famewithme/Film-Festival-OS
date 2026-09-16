@@ -37,12 +37,108 @@ export async function requestExport(reportType:string,format:'csv'|'xlsx'|'json'
   if(r.error) throw new Error(r.error.message); const row=(r.data??[])[0];
   await writeAuditEvent('export.requested','export_job',row?.id,{reportType,format}); return row;
 }
-export async function advanceExportJob(id:string,current:string) {
-  const c=await ctx('tenant.read'); const next=current==='queued'?'generated':current==='generated'?'expired':'queued';
-  const patch:any={status:next}; if(next==='generated'){patch.generated_at=new Date().toISOString();patch.file_path=`exports/${id}.placeholder`;patch.expires_at=new Date(Date.now()+7*86400000).toISOString();}
-  const r=await db.from<any>('export_jobs').update(patch).eq('id',id).eq('tenant_id',c.tenantId); if(r.error)throw new Error(r.error.message);
-  await writeAuditEvent('export.status_changed','export_job',id,{status:next}); return (r.data??[])[0];
+
+function csvCell(value:any) {
+  if (value === null || value === undefined) return '';
+  const text = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
 }
+
+function rowsToCsv(rows:any[]) {
+  if (!rows.length) return '';
+  const headers = Array.from(new Set(rows.flatMap((row:any) => Object.keys(row))));
+  return [
+    headers.map(csvCell).join(','),
+    ...rows.map((row:any) => headers.map((h:string) => csvCell(row[h])).join(','))
+  ].join('\n');
+}
+
+export async function generateExportFile(
+  reportType:'submissions'|'operations',
+  format:'csv'|'json'
+) {
+  const c = await ctx('tenant.read');
+  const requestedAt = new Date().toISOString();
+
+  const jobResult = await db.from<any>('export_jobs').insert({
+    tenant_id:c.tenantId,
+    requested_by:c.userId,
+    report_type:reportType,
+    format,
+    status:'queued',
+    requested_at:requestedAt,
+    expires_at:null,
+    file_path:null
+  });
+
+  if (jobResult.error) throw new Error(jobResult.error.message);
+
+  const job = (jobResult.data ?? [])[0];
+  if (!job?.id) throw new Error('Export job could not be created.');
+
+  try {
+    let data:any;
+
+    if (reportType === 'submissions') {
+      const result = await db.from<any>('submissions')
+        .select('*')
+        .eq('tenant_id', c.tenantId);
+
+      if (result.error) throw new Error(result.error.message);
+      data = result.data ?? [];
+    } else {
+      data = await getOperationalSnapshot();
+    }
+
+    const stamp = new Date().toISOString()
+      .slice(0,19)
+      .replace(/[T:]/g,'-');
+
+    const filename =
+      `ffos-${reportType}-${stamp}.${format}`;
+
+    const content =
+      format === 'json'
+        ? JSON.stringify(data, null, 2)
+        : rowsToCsv(Array.isArray(data) ? data : [data]);
+
+    const generatedAt = new Date().toISOString();
+
+    const update = await db.from<any>('export_jobs').update({
+      status:'generated',
+      generated_at:generatedAt,
+      expires_at:new Date(Date.now()+7*86400000).toISOString(),
+      file_path:filename
+    }).eq('id',job.id).eq('tenant_id',c.tenantId);
+
+    if (update.error) throw new Error(update.error.message);
+
+    await writeAuditEvent(
+      'export.generated',
+      'export_job',
+      job.id,
+      {reportType,format,filename}
+    );
+
+    return {
+      id:job.id,
+      filename,
+      content,
+      mime:format === 'json'
+        ? 'application/json'
+        : 'text/csv;charset=utf-8'
+    };
+
+  } catch (error:any) {
+    await db.from<any>('export_jobs')
+      .update({status:'failed'})
+      .eq('id',job.id)
+      .eq('tenant_id',c.tenantId);
+
+    throw error;
+  }
+}
+
 
 export async function listAuditEvents(limit=100) {
   const c=await ctx('audit.read'); const r=await db.from<any>('audit_events').select('*').eq('tenant_id',c.tenantId).order('created_at',{ascending:false}).limit(limit);
