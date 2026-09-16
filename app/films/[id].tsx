@@ -1,3 +1,4 @@
+import { goWorkspaceHome } from '@/lib/navigation';
 import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -30,7 +31,7 @@ export default function FilmDetailScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Go back"
-              onPress={() => router.back()}
+              onPress={() => void goWorkspaceHome()}
               style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}
               className="w-11 h-11 rounded-full bg-background/80 items-center justify-center"
             >
