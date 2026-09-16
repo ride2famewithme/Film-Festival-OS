@@ -19,7 +19,7 @@ const items = [
     badge: 'PRODUCTION',
     subtitle: 'High-authority accounts, MFA policy and access review.',
     icon: LockKeyhole,
-    route: '/security-centre',
+    route: '/privileged-access',
   },
   {
     title: 'Audit Event Register',
