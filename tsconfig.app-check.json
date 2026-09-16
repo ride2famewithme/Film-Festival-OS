@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    ".expo",
+    "downloads_Used by chatGPT/**",
+    "CODE_BACKUPS/**",
+    "supabase/functions/**",
+    "**/*_PRE_*",
+    "**/*.BACKUP_*"
+  ]
+}

@@ -1,3 +1,4 @@
+import { goWorkspaceHome } from '@/lib/navigation';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -62,7 +63,7 @@ export default function Screen() {
         }}
       >
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => void goWorkspaceHome()}
           className="w-10 h-10 rounded-full border border-border bg-card items-center justify-center mb-5"
         >
           <ArrowLeft color={THEME.accent} size={19} />

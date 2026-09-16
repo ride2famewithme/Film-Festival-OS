@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { getActiveContext } from '@/data/session';
 
 import {
   listAwardDecisionCandidates,
@@ -213,6 +214,20 @@ export default function AwardDecisionsScreen() {
 
   const activeAward = selected?.awards?.[0];
 
+  async function goBack() {
+    try {
+      const context = await getActiveContext();
+
+      if (context?.role === 'platform_admin') {
+        router.replace('/global-hq');
+      } else {
+        router.replace('/(tabs)/dashboard');
+      }
+    } catch {
+      router.replace('/(tabs)/dashboard');
+    }
+  }
+
 
   return (
     <View className="flex-1 bg-background">
@@ -225,7 +240,7 @@ export default function AwardDecisionsScreen() {
       >
 
         <Pressable
-          onPress={() => router.back()}
+          onPress={goBack}
           className="mb-5"
         >
           <Text className="text-primary font-semibold">

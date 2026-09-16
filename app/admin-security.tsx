@@ -1,3 +1,4 @@
+import { goWorkspaceHome } from '@/lib/navigation';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import {
@@ -66,7 +67,7 @@ export default function AdminSecurityScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Go back"
-          onPress={() => router.back()}
+          onPress={() => void goWorkspaceHome()}
           className="w-10 h-10 rounded-full border border-border bg-card items-center justify-center mb-4"
         >
           <ArrowLeft size={19} color={THEME.accent} />

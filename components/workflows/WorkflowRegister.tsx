@@ -1,3 +1,4 @@
+import { goWorkspaceHome } from '@/lib/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ArrowLeft, CirclePlus, RefreshCw } from 'lucide-react-native';
@@ -55,7 +56,7 @@ export function WorkflowRegister(props: Props) {
   }
 
   return <View className="flex-1 bg-background"><ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 48, paddingHorizontal: 20 }}>
-    <Pressable onPress={() => router.back()} className="w-10 h-10 rounded-full border border-border bg-card items-center justify-center mb-5"><ArrowLeft color={THEME.accent} size={19}/></Pressable>
+    <Pressable onPress={() => void goWorkspaceHome()} className="w-10 h-10 rounded-full border border-border bg-card items-center justify-center mb-5"><ArrowLeft color={THEME.accent} size={19}/></Pressable>
     <Text className="text-footnote font-semibold uppercase tracking-widest text-primary">{props.eyebrow}</Text>
     <Text className="text-title1 font-bold text-foreground mt-1">{props.title}</Text>
     <Text className="text-subhead text-muted-foreground mt-2">{props.subtitle}</Text>
