@@ -1,0 +1,25 @@
+===== FILM FESTIVAL OS™ MIGRATION RECONSTRUCTION MANIFEST =====
+
+Checkpoint: 08SEP2026
+Purpose: Reconstructed migration package integrity record
+
+FILES:
+-rw-r--r--  1 alexschiller  staff   6.6K  8 Sep 01:25 supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql
+-rw-r--r--  1 alexschiller  staff   2.1K  8 Sep 01:29 supabase/migrations/20260907_013_submitter_identity_waiver_enforcement.sql
+-rw-r--r--  1 alexschiller  staff   8.2K  8 Sep 01:26 supabase/migrations/20260907_014_jury_governance_foundation.sql
+-rw-r--r--  1 alexschiller  staff    11K  8 Sep 00:18 supabase/migrations/20260907_015_jury_scoring_weighted_results.sql
+-rw-r--r--  1 alexschiller  staff   995B  8 Sep 00:22 supabase/migrations/20260907_016_decisions_awards_hard_control.sql
+-rw-r--r--  1 alexschiller  staff   3.2K  8 Sep 00:12 supabase/migrations/20260907_017_official_laurel_output.sql
+
+LINE COUNTS:
+     296 supabase/migrations/20260907_012_external_submitter_identity_risk_foundation.sql
+      97 supabase/migrations/20260907_013_submitter_identity_waiver_enforcement.sql
+     375 supabase/migrations/20260907_014_jury_governance_foundation.sql
+     554 supabase/migrations/20260907_015_jury_scoring_weighted_results.sql
+      49 supabase/migrations/20260907_016_decisions_awards_hard_control.sql
+     139 supabase/migrations/20260907_017_official_laurel_output.sql
+    1510 total
+
+TOTAL:
+    1510 total
+===== END MANIFEST =====
