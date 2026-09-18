@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import QuickGuideHelp from '@/components/QuickGuideHelp';
 import { db } from '@/data/db';
 
 type Mode = 'all' | 'in_person' | 'online' | 'hybrid';
@@ -52,6 +53,21 @@ export default function FestivalDirectoryScreen() {
         One directory for in-person, online-only and hybrid festivals.
       </Text>
 
+      <QuickGuideHelp
+        purpose="Help visitors discover publicly listed festivals and understand how each festival is delivered."
+        steps={[
+          'Choose ALL or filter by delivery type.',
+          'Review the festival name, country and delivery mode.',
+          'Open the festival listing when full public profile pages are enabled.',
+        ]}
+        terms={[
+          { label: 'IN PERSON', description: 'Events are attended at physical venues.' },
+          { label: 'ONLINE', description: 'Events can be attended remotely.' },
+          { label: 'HYBRID', description: 'Festivals offer both physical venue attendance and online access.' },
+        ]}
+        flow={['DISCOVER', 'FILTER', 'CHOOSE FESTIVAL', 'VIEW / ATTEND']}
+      />
+
       <View style={styles.filters}>
         {(['all','in_person','online','hybrid'] as Mode[]).map((x) => (
           <Pressable
@@ -62,6 +78,19 @@ export default function FestivalDirectoryScreen() {
             <Text style={styles.filterText}>{x.replace('_',' ').toUpperCase()}</Text>
           </Pressable>
         ))}
+      </View>
+
+      <View style={styles.infoBox}>
+        <Text style={styles.infoTitle}>VISITOR GUIDE</Text>
+        <Text style={styles.guideText}>
+          IN PERSON — events are attended at physical venues.
+        </Text>
+        <Text style={styles.guideText}>
+          ONLINE — events can be attended remotely.
+        </Text>
+        <Text style={styles.guideText}>
+          HYBRID — festivals offer both physical venue attendance and online access.
+        </Text>
       </View>
 
       {loading ? <ActivityIndicator /> : (
@@ -109,6 +138,24 @@ const styles = StyleSheet.create({
   },
   filterActive: { borderWidth: 2 },
   filterText: { fontSize: 12, fontWeight: '800' },
+  infoBox: {
+    borderWidth: 1,
+    borderColor: '#d8d8d8',
+    borderRadius: 12,
+    padding: 13,
+    gap: 4,
+    backgroundColor: '#F9FAFB',
+  },
+  infoTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.7,
+  },
+  guideText: {
+    fontSize: 13,
+    lineHeight: 19,
+    opacity: 0.72,
+  },
   list: { gap: 10 },
   card: {
     borderWidth: 1,

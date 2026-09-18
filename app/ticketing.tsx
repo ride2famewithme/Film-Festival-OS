@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 
+import QuickGuideHelp from '@/components/QuickGuideHelp';
+
 import {
   createTicketedEvent,
   createVenue,
@@ -117,6 +119,22 @@ export default function TicketingScreen() {
         Declared safe venue capacity is stored and enforced — never invented by the app.
       </Text>
 
+      <QuickGuideHelp
+        purpose="Create venues and ticketed events for physical, online or hybrid festival delivery."
+        steps={[
+          'Create or confirm the venue when physical attendance is involved.',
+          'Create the event and choose IN PERSON, ONLINE or HYBRID.',
+          'Save as DRAFT first; ticket pricing, inventory and checkout follow in later controls.',
+        ]}
+        terms={[
+          { label: 'IN PERSON', description: 'Guests attend at a physical venue.' },
+          { label: 'ONLINE', description: 'Guests attend remotely using approved online access.' },
+          { label: 'HYBRID', description: 'Physical attendance and online access operate together, with separate capacity controls.' },
+          { label: 'NATIVE', description: 'Film Festival OS™ manages the ticketing record directly rather than through an external provider.' },
+        ]}
+        flow={['VENUE', 'EVENT', 'TICKET TYPE', 'SALE', 'CHECK-IN / VIEW']}
+      />
+
       {loading ? <ActivityIndicator /> : (
         <>
           <View style={styles.metrics}>
@@ -185,6 +203,20 @@ export default function TicketingScreen() {
                   <Text style={styles.choiceText}>{mode.replace('_',' ').toUpperCase()}</Text>
                 </Pressable>
               ))}
+            </View>
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoTitle}>WHAT THESE OPTIONS MEAN</Text>
+              <Text style={styles.note}>
+                IN PERSON — guests attend at a physical venue.
+              </Text>
+              <Text style={styles.note}>
+                ONLINE — guests attend remotely using approved online access.
+              </Text>
+              <Text style={styles.note}>
+                HYBRID — the same event supports both physical attendance and online access.
+                Physical venue capacity and online access capacity are managed separately.
+              </Text>
             </View>
 
             <Text style={styles.note}>
@@ -264,6 +296,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
     fontSize: 16,
+    color: '#111827',
+    backgroundColor: '#FFFFFF',
   },
   choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choice: {
@@ -289,6 +323,19 @@ const styles = StyleSheet.create({
   },
   secondaryText: { textAlign: 'center', fontWeight: '700' },
   note: { fontSize: 13, opacity: 0.72, lineHeight: 19 },
+  infoBox: {
+    borderWidth: 1,
+    borderColor: '#d8d8d8',
+    borderRadius: 10,
+    padding: 12,
+    gap: 4,
+    backgroundColor: '#F9FAFB',
+  },
+  infoTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.7,
+  },
   rowText: { fontSize: 13, opacity: 0.72 },
   eventRow: {
     borderTopWidth: 1,

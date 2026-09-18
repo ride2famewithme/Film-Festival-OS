@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { ArrowLeft, ChevronRight, LucideIcon } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { THEME } from '@/constants/theme';
+import QuickGuideHelp from '@/components/QuickGuideHelp';
 
 type HubItem = {
   title: string;
@@ -33,6 +34,30 @@ export function OSHub({ eyebrow, title, subtitle, items, statusTitle, statusText
         <Text className="text-footnote font-semibold uppercase tracking-widest text-primary">{eyebrow}</Text>
         <Text className="text-title1 font-bold text-foreground mt-1">{title}</Text>
         <Text className="text-subhead text-muted-foreground mt-2 mb-5">{subtitle}</Text>
+
+        <QuickGuideHelp
+          purpose={`Use ${title} as a controlled navigation hub for the related Film Festival OS™ functions.`}
+          steps={[
+            'Read the page status or summary first.',
+            'Choose the module that matches the job you need to complete.',
+            'Complete the task inside that module, then return to this hub.',
+          ]}
+          terms={[
+            {
+              label: 'MODULE',
+              description: 'A dedicated Film Festival OS™ work area for a specific job or responsibility.',
+            },
+            {
+              label: 'TENANT',
+              description: 'The festival, franchise, territory or HQ workspace whose data and permissions you are currently using.',
+            },
+            {
+              label: 'PRODUCTION',
+              description: 'A workflow that has moved beyond a placeholder and is connected to implemented application logic.',
+            },
+          ]}
+          flow={['OPEN HUB', 'CHOOSE MODULE', 'COMPLETE TASK', 'RETURN']}
+        />
 
         {statusTitle && statusText ? (
           <View className="rounded-2xl border border-primary bg-card p-4 mb-6">

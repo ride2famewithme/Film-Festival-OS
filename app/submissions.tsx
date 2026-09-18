@@ -1,4 +1,5 @@
 import { goWorkspaceHome } from '@/lib/navigation';
+import QuickGuideHelp from '@/components/QuickGuideHelp';
 import { useEffect,useState } from 'react';
 import { Alert,Pressable,ScrollView,Text,TextInput,View } from 'react-native';
 import { router } from 'expo-router';
@@ -10,5 +11,20 @@ export default function Submissions(){const i=useSafeAreaInsets();const [rows,se
 const load=async()=>{try{setRows(await listSubmissions())}catch(e:any){Alert.alert('Submissions',e.message)}};useEffect(()=>{load()},[]);
 const add=async()=>{if(!title.trim()||!name.trim())return Alert.alert('Required','Film title and filmmaker name are required.');setBusy(true);try{await createSubmission({title:title.trim(),filmmaker_name:name.trim(),email:email.trim()||undefined});setTitle('');setName('');setEmail('');await load()}catch(e:any){Alert.alert('Could not create',e.message)}finally{setBusy(false)}};
 return <View className="flex-1 bg-background"><ScrollView contentContainerStyle={{paddingTop:i.top+12,paddingBottom:i.bottom+40,paddingHorizontal:20}}><Pressable onPress={()=>void goWorkspaceHome()} className="w-10 h-10 rounded-full border border-border bg-card items-center justify-center mb-5"><ArrowLeft color={THEME.accent} size={19}/></Pressable><Text className="text-footnote font-semibold uppercase tracking-widest text-primary">REAL WORKFLOW</Text><Text className="text-title1 font-bold text-foreground mt-1">Submissions & Filmmaker Intake</Text><Text className="text-subhead text-muted-foreground mt-1 mb-5">Tenant-scoped intake, status control, notification queue and audit events.</Text>
+<QuickGuideHelp
+  purpose="Receive filmmaker entries, review their intake status and move them safely into the festival workflow."
+  steps={[
+    'Enter the film and filmmaker details, then receive the submission.',
+    'Review the submission record and mark it eligible only after the required checks.',
+    'Queue confirmation or decision communications when the record is ready.',
+  ]}
+  terms={[
+    { label: 'SUBMISSION', description: 'A film or project entered into the festival.' },
+    { label: 'ELIGIBLE', description: 'The entry has passed the current eligibility checks.' },
+    { label: 'QUEUED', description: 'A message has been prepared for controlled delivery.' },
+    { label: 'TENANT-SCOPED', description: 'The record belongs only to the currently active festival or authorised workspace.' },
+  ]}
+  flow={['RECEIVE ENTRY', 'CHECK ELIGIBILITY', 'PROCESS', 'NOTIFY']}
+ />
 <View className="rounded-3xl border border-border bg-card p-4 gap-3"><Text className="text-headline font-semibold text-card-foreground">New submission</Text>{[['Film title',title,setTitle],['Filmmaker / submitter',name,setName],['Email',email,setEmail]].map(([p,v,s]:any)=><TextInput key={p} value={v} onChangeText={s} placeholder={p} placeholderTextColor={THEME.muted} className="rounded-xl border border-border bg-background px-4 py-3 text-foreground"/>)}<Pressable onPress={add} disabled={busy} className="rounded-xl bg-primary px-4 py-3 flex-row justify-center items-center gap-2"><Plus size={17} color={THEME.primaryFg}/><Text className="font-bold text-primary-foreground">{busy?'Saving…':'Receive Submission'}</Text></Pressable></View>
 <Pressable onPress={()=>router.push("/submission-eligibility")} className="rounded-xl border border-primary px-4 py-3 mt-4"><Text className="font-semibold text-primary text-center">Open Eligibility & Payment State</Text></Pressable><View className="flex-row justify-between items-center mt-6 mb-3"><Text className="text-title3 font-semibold text-foreground">Intake register</Text><Pressable onPress={load}><RefreshCw size={19} color={THEME.accent}/></Pressable></View>{rows.map(r=><View key={r.id} className="rounded-2xl border border-border bg-card p-4 mb-3"><Text className="text-headline font-semibold text-card-foreground">{r.title}</Text><Text className="text-footnote text-muted-foreground mt-1">{r.filmmaker_name} · {r.status}</Text><View className="flex-row flex-wrap gap-2 mt-3"><Pressable onPress={async()=>{await updateSubmissionStatus(r.id,'eligible');await load()}} className="rounded-full border border-border px-3 py-2"><Text className="text-footnote text-foreground">Mark eligible</Text></Pressable><Pressable onPress={async()=>{if(!r.email)return Alert.alert('No email','Add an email before queueing.');await queueSubmissionNotification(r.id,r.email,'received','Submission received',`We received ${r.title}.`);Alert.alert('Queued','Notification queued and audited.')}} className="rounded-full border border-primary px-3 py-2"><Text className="text-footnote text-primary">Queue confirmation</Text></Pressable></View></View>)}{rows.length===0&&<View className="rounded-2xl border border-border bg-card p-6 items-center"><CheckCircle2 size={24} color={THEME.accent}/><Text className="text-muted-foreground mt-2">No submissions in this tenant yet.</Text></View>}</ScrollView></View>}

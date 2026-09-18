@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { getActiveContext } from '@/data/session';
+import QuickGuideHelp from '@/components/QuickGuideHelp';
 
 import {
   listAwardDecisionCandidates,
@@ -256,6 +257,22 @@ export default function AwardDecisionsScreen() {
         <Text className="text-subhead text-muted-foreground mt-2 mb-6">
           Jury results inform the decision. Final awards remain human-controlled.
         </Text>
+
+        <QuickGuideHelp
+          purpose="Turn completed jury results into controlled festival decisions, awards and entrant notifications."
+          steps={[
+            'Select a submission with completed jury results.',
+            'Lock the final jury result when review is complete, then record the festival decision.',
+            'Publish the approved decision and queue the entrant notification.',
+          ]}
+          terms={[
+            { label: 'PROVISIONAL', description: 'The jury result can still change and is not final.' },
+            { label: 'LOCKED', description: 'The jury result is final and can no longer be changed through the normal judging workflow.' },
+            { label: 'DECISION', description: 'The festival-controlled outcome such as Winner, Finalist or Official Selection.' },
+            { label: 'PUBLISHED', description: 'The approved result has been released through the controlled awards workflow.' },
+          ]}
+          flow={['JURY RESULT', 'LOCK', 'RECORD DECISION', 'PUBLISH', 'NOTIFY']}
+        />
 
 
         {rows.length === 0 && (

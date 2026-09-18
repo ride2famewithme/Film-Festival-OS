@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 
+import QuickGuideHelp from '@/components/QuickGuideHelp';
+
 import { createRow, listRows, updateRow } from '@/data/workflows/core';
 
 type DeliveryMode = 'in_person' | 'online' | 'hybrid';
@@ -73,13 +75,21 @@ export default function FestivalProfile() {
       setSaving(true);
       setMessage('');
 
+      const normalizedSlug =
+        directorySlug.trim() ||
+        festivalName
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+
       const values = {
         festival_name: festivalName.trim(),
         country: country.trim() || 'Australia',
         status,
         delivery_mode: deliveryMode,
         directory_public: directoryPublic,
-        directory_slug: directorySlug.trim() || null,
+        directory_slug: normalizedSlug || null,
         updated_at: new Date().toISOString(),
       };
 
@@ -117,6 +127,25 @@ export default function FestivalProfile() {
         Tenant-scoped festival profile, delivery mode and public-directory controls.
       </Text>
 
+      <QuickGuideHelp
+        purpose="Control how this festival operates and whether the public can discover it."
+        steps={[
+          'Choose the festival delivery mode.',
+          'Keep the profile DRAFT while preparing it, then change it to PUBLISHED.',
+          'Choose LISTED only when the festival should appear in the public Film Festival OS™ Directory.',
+        ]}
+        terms={[
+          { label: 'IN PERSON', description: 'Festival activity takes place at physical venues.' },
+          { label: 'ONLINE', description: 'Festival activity is delivered remotely.' },
+          { label: 'HYBRID', description: 'The festival combines physical venue activity and online access.' },
+          { label: 'DRAFT', description: 'Not yet publicly released.' },
+          { label: 'PUBLISHED', description: 'Approved for public visibility.' },
+          { label: 'HIDDEN', description: 'Excluded from the Film Festival OS™ public directory.' },
+          { label: 'LISTED', description: 'Shown in the public directory once the profile is published.' },
+        ]}
+        flow={['DRAFT', 'PUBLISHED', 'LISTED', 'PUBLIC DIRECTORY']}
+      />
+
       {loading ? (
         <ActivityIndicator />
       ) : (
@@ -150,6 +179,26 @@ export default function FestivalProfile() {
                 </Text>
               </Pressable>
             ))}
+          </View>
+
+          <View style={styles.infoBox}>
+            <Text style={styles.infoTitle}>WHAT THESE OPTIONS MEAN</Text>
+            <Text style={styles.note}>
+              IN PERSON — the festival operates from physical venues.
+            </Text>
+            <Text style={styles.note}>
+              ONLINE — the festival is delivered remotely without requiring a physical venue.
+            </Text>
+            <Text style={styles.note}>
+              HYBRID — the festival combines physical venue events with online access.
+            </Text>
+            <Text style={styles.note}>
+              DRAFT — not yet publicly released. PUBLISHED — approved for public visibility.
+            </Text>
+            <Text style={styles.note}>
+              HIDDEN — excluded from the Film Festival OS™ public directory.
+              LISTED — shown in the public directory once the profile is published.
+            </Text>
           </View>
 
           <Text style={styles.label}>Profile status</Text>
@@ -187,6 +236,10 @@ export default function FestivalProfile() {
               </Pressable>
             ))}
           </View>
+
+          <Text style={styles.note}>
+            CURRENT LOADED STATE: {deliveryMode.toUpperCase()} · {status.toUpperCase()} · {directoryPublic ? 'LISTED' : 'HIDDEN'}
+          </Text>
 
           <Text style={styles.label}>Directory slug</Text>
           <TextInput
@@ -268,6 +321,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
     fontSize: 16,
+    color: '#111827',
+    backgroundColor: '#FFFFFF',
   },
   row: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   choice: {
@@ -280,6 +335,19 @@ const styles = StyleSheet.create({
   choiceActive: { borderWidth: 2 },
   choiceText: { fontWeight: '700' },
   note: { fontSize: 13, lineHeight: 19, opacity: 0.7 },
+  infoBox: {
+    borderWidth: 1,
+    borderColor: '#d8d8d8',
+    borderRadius: 10,
+    padding: 12,
+    gap: 4,
+    backgroundColor: '#F9FAFB',
+  },
+  infoTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.7,
+  },
   save: {
     backgroundColor: '#111',
     borderRadius: 10,
