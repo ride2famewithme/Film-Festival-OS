@@ -145,6 +145,8 @@ create table if not exists public.event_ticket_types (
   description text,
   price_cents integer not null default 0,
   currency text not null default 'AUD',
+  admission_mode text not null default 'in_person'
+    check (admission_mode in ('in_person','online','hybrid')),
   inventory_limit integer,
   minimum_per_order integer not null default 1,
   maximum_per_order integer not null default 10,
@@ -272,6 +274,202 @@ on public.event_tickets(event_id, ticket_status);
 create index if not exists event_tickets_order_idx
 on public.event_tickets(order_id);
 
+
+
+
+-- ============================================================
+-- NATIVE SALES CAPACITY GUARD
+-- ============================================================
+-- A physical event cannot be ON SALE without a declared/manual
+-- physical capacity. Native ticket inventory cannot exceed it.
+-- Online capacity may be unlimited, or capped explicitly.
+--
+-- The capacity figure is supplied by the venue/operator. This
+-- function enforces that figure; it does not calculate or certify it.
+
+create or replace function public.assert_ticketed_event_capacity(
+  p_event_id uuid
+)
+returns void
+language plpgsql
+set search_path = public
+as $
+declare
+  v_event public.ticketed_events%rowtype;
+  v_physical_capacity integer;
+  v_physical_inventory bigint;
+  v_online_inventory bigint;
+  v_active_physical_types integer;
+  v_active_online_types integer;
+  v_unlimited_physical integer;
+  v_unlimited_online integer;
+begin
+  select *
+  into v_event
+  from public.ticketed_events
+  where id = p_event_id;
+
+  if not found or v_event.sales_status <> 'on_sale' then
+    return;
+  end if;
+
+  if v_event.delivery_mode in ('in_person','hybrid') then
+    if v_event.capacity_mode = 'venue' then
+      select declared_safe_capacity
+      into v_physical_capacity
+      from public.event_venues
+      where id = v_event.venue_id
+        and tenant_id = v_event.tenant_id
+        and status = 'active';
+
+    elsif v_event.capacity_mode = 'manual' then
+      v_physical_capacity := v_event.manual_capacity;
+
+    else
+      raise exception
+        'Physical or hybrid events cannot use unlimited virtual capacity for physical admission.';
+    end if;
+
+    if v_physical_capacity is null or v_physical_capacity <= 0 then
+      raise exception
+        'A positive declared/manual physical capacity is required before sales can go live.';
+    end if;
+
+    if v_event.external_provider = 'native' then
+      select
+        count(*),
+        count(*) filter (where inventory_limit is null),
+        coalesce(sum(inventory_limit) filter (where inventory_limit is not null),0)
+      into
+        v_active_physical_types,
+        v_unlimited_physical,
+        v_physical_inventory
+      from public.event_ticket_types
+      where event_id = v_event.id
+        and tenant_id = v_event.tenant_id
+        and status = 'active'
+        and admission_mode in ('in_person','hybrid');
+
+      if v_active_physical_types = 0 then
+        raise exception
+          'At least one active physical ticket type is required before native sales can go live.';
+      end if;
+
+      if v_unlimited_physical > 0 then
+        raise exception
+          'Physical ticket types require an inventory limit before native sales can go live.';
+      end if;
+
+      if v_physical_inventory > v_physical_capacity then
+        raise exception
+          'Physical ticket inventory (%) exceeds declared event capacity (%).',
+          v_physical_inventory,
+          v_physical_capacity;
+      end if;
+    end if;
+  end if;
+
+  if v_event.delivery_mode in ('online','hybrid')
+     and v_event.external_provider = 'native' then
+
+    select
+      count(*),
+      count(*) filter (where inventory_limit is null),
+      coalesce(sum(inventory_limit) filter (where inventory_limit is not null),0)
+    into
+      v_active_online_types,
+      v_unlimited_online,
+      v_online_inventory
+    from public.event_ticket_types
+    where event_id = v_event.id
+      and tenant_id = v_event.tenant_id
+      and status = 'active'
+      and admission_mode in ('online','hybrid');
+
+    if v_event.delivery_mode = 'online'
+       and v_active_online_types = 0 then
+      raise exception
+        'At least one active online ticket type is required before native online sales can go live.';
+    end if;
+
+    if v_event.online_capacity is not null then
+      if v_unlimited_online > 0 then
+        raise exception
+          'Online ticket types require an inventory limit when an online capacity is set.';
+      end if;
+
+      if v_online_inventory > v_event.online_capacity then
+        raise exception
+          'Online ticket inventory (%) exceeds configured online capacity (%).',
+          v_online_inventory,
+          v_event.online_capacity;
+      end if;
+    end if;
+  end if;
+end;
+$;
+
+
+create or replace function public.ticketed_event_capacity_guard_trigger()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+begin
+  perform public.assert_ticketed_event_capacity(new.id);
+  return new;
+end;
+$;
+
+drop trigger if exists ticketed_event_capacity_guard
+on public.ticketed_events;
+
+create constraint trigger ticketed_event_capacity_guard
+after insert or update of
+  sales_status,
+  delivery_mode,
+  venue_id,
+  capacity_mode,
+  manual_capacity,
+  online_capacity,
+  external_provider
+on public.ticketed_events
+deferrable initially immediate
+for each row
+execute function public.ticketed_event_capacity_guard_trigger();
+
+
+create or replace function public.event_ticket_type_capacity_guard_trigger()
+returns trigger
+language plpgsql
+set search_path = public
+as $
+begin
+  if tg_op = 'DELETE' then
+    perform public.assert_ticketed_event_capacity(old.event_id);
+    return old;
+  end if;
+
+  perform public.assert_ticketed_event_capacity(new.event_id);
+
+  if tg_op = 'UPDATE'
+     and old.event_id is distinct from new.event_id then
+    perform public.assert_ticketed_event_capacity(old.event_id);
+  end if;
+
+  return new;
+end;
+$;
+
+drop trigger if exists event_ticket_type_capacity_guard
+on public.event_ticket_types;
+
+create constraint trigger event_ticket_type_capacity_guard
+after insert or update or delete
+on public.event_ticket_types
+deferrable initially immediate
+for each row
+execute function public.event_ticket_type_capacity_guard_trigger();
 
 alter table public.event_venues enable row level security;
 alter table public.ticketed_events enable row level security;
