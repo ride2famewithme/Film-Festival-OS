@@ -1,4 +1,5 @@
 import { goWorkspaceHome } from '@/lib/navigation';
+import QuickGuideHelp from '@/components/QuickGuideHelp';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -260,6 +261,22 @@ export default function JuryWorkflow() {
         <Text className="text-subhead text-muted-foreground mt-1 mb-5">
           Assigned scoring forms, criterion scoring and database-controlled final submission.
         </Text>
+
+        <QuickGuideHelp
+          purpose="Complete only the jury reviews assigned to you using the approved scoring form."
+          steps={[
+            'Open an ASSIGNED review.',
+            'Score and save each criterion using the allowed score range.',
+            'Review your recommendation and notes, then submit the final review once.',
+          ]}
+          terms={[
+            { label: 'ASSIGNED', description: 'This submission has been allocated to you for judging.' },
+            { label: 'CRITERION', description: 'One scored part of the approved judging form.' },
+            { label: 'DRAFT REVIEW', description: 'Scores can still be completed or corrected before final submission.' },
+            { label: 'SUBMITTED', description: 'The final jury review has been lodged and is no longer a working draft.' },
+          ]}
+          flow={['ASSIGNMENT', 'SCORE CRITERIA', 'SAVE', 'SUBMIT FINAL']}
+        />
 
 
         <Pressable

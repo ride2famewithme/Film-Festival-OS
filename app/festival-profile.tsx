@@ -10,13 +10,20 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 
+import QuickGuideHelp from '@/components/QuickGuideHelp';
+
 import { createRow, listRows, updateRow } from '@/data/workflows/core';
+
+type DeliveryMode = 'in_person' | 'online' | 'hybrid';
 
 export default function FestivalProfile() {
   const [id, setId] = useState<string | null>(null);
   const [festivalName, setFestivalName] = useState('');
   const [country, setCountry] = useState('Australia');
   const [status, setStatus] = useState('draft');
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>('in_person');
+  const [directoryPublic, setDirectoryPublic] = useState(false);
+  const [directorySlug, setDirectorySlug] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -34,6 +41,13 @@ export default function FestivalProfile() {
         setFestivalName(String(row.festival_name ?? ''));
         setCountry(String(row.country ?? 'Australia'));
         setStatus(String(row.status ?? 'draft'));
+        setDeliveryMode(
+          (row.delivery_mode === 'online' || row.delivery_mode === 'hybrid')
+            ? row.delivery_mode
+            : 'in_person'
+        );
+        setDirectoryPublic(Boolean(row.directory_public));
+        setDirectorySlug(String(row.directory_slug ?? ''));
       }
     } catch (error: any) {
       setMessage(error?.message ?? 'Unable to load festival profile.');
@@ -52,14 +66,30 @@ export default function FestivalProfile() {
       return;
     }
 
+    if (directoryPublic && status !== 'published') {
+      setMessage('Publish the festival profile before enabling public directory listing.');
+      return;
+    }
+
     try {
       setSaving(true);
       setMessage('');
+
+      const normalizedSlug =
+        directorySlug.trim() ||
+        festivalName
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
 
       const values = {
         festival_name: festivalName.trim(),
         country: country.trim() || 'Australia',
         status,
+        delivery_mode: deliveryMode,
+        directory_public: directoryPublic,
+        directory_slug: normalizedSlug || null,
         updated_at: new Date().toISOString(),
       };
 
@@ -94,8 +124,27 @@ export default function FestivalProfile() {
       <Text style={styles.eyebrow}>VIEW / EDIT</Text>
       <Text style={styles.title}>Festival Setup</Text>
       <Text style={styles.subtitle}>
-        Real tenant-scoped festival profile stored in Supabase.
+        Tenant-scoped festival profile, delivery mode and public-directory controls.
       </Text>
+
+      <QuickGuideHelp
+        purpose="Control how this festival operates and whether the public can discover it."
+        steps={[
+          'Choose the festival delivery mode.',
+          'Keep the profile DRAFT while preparing it, then change it to PUBLISHED.',
+          'Choose LISTED only when the festival should appear in the public Film Festival OS™ Directory.',
+        ]}
+        terms={[
+          { label: 'IN PERSON', description: 'Festival activity takes place at physical venues.' },
+          { label: 'ONLINE', description: 'Festival activity is delivered remotely.' },
+          { label: 'HYBRID', description: 'The festival combines physical venue activity and online access.' },
+          { label: 'DRAFT', description: 'Not yet publicly released.' },
+          { label: 'PUBLISHED', description: 'Approved for public visibility.' },
+          { label: 'HIDDEN', description: 'Excluded from the Film Festival OS™ public directory.' },
+          { label: 'LISTED', description: 'Shown in the public directory once the profile is published.' },
+        ]}
+        flow={['DRAFT', 'PUBLISHED', 'LISTED', 'PUBLIC DIRECTORY']}
+      />
 
       {loading ? (
         <ActivityIndicator />
@@ -117,18 +166,100 @@ export default function FestivalProfile() {
             placeholder="Country"
           />
 
+          <Text style={styles.label}>Festival delivery mode</Text>
+          <View style={styles.row}>
+            {(['in_person', 'online', 'hybrid'] as DeliveryMode[]).map((item) => (
+              <Pressable
+                key={item}
+                style={[styles.choice, deliveryMode === item && styles.choiceActive]}
+                onPress={() => setDeliveryMode(item)}
+              >
+                <Text style={styles.choiceText}>
+                  {item.replace('_', ' ').toUpperCase()}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.infoBox}>
+            <Text style={styles.infoTitle}>WHAT THESE OPTIONS MEAN</Text>
+            <Text style={styles.note}>
+              IN PERSON — the festival operates from physical venues.
+            </Text>
+            <Text style={styles.note}>
+              ONLINE — the festival is delivered remotely without requiring a physical venue.
+            </Text>
+            <Text style={styles.note}>
+              HYBRID — the festival combines physical venue events with online access.
+            </Text>
+            <Text style={styles.note}>
+              DRAFT — not yet publicly released. PUBLISHED — approved for public visibility.
+            </Text>
+            <Text style={styles.note}>
+              HIDDEN — excluded from the Film Festival OS™ public directory.
+              LISTED — shown in the public directory once the profile is published.
+            </Text>
+          </View>
+
           <Text style={styles.label}>Profile status</Text>
           <View style={styles.row}>
             {['draft', 'published'].map((item) => (
               <Pressable
                 key={item}
                 style={[styles.choice, status === item && styles.choiceActive]}
-                onPress={() => setStatus(item)}
+                onPress={() => {
+                  setStatus(item);
+                  if (item !== 'published') setDirectoryPublic(false);
+                }}
               >
                 <Text style={styles.choiceText}>{item.toUpperCase()}</Text>
               </Pressable>
             ))}
           </View>
+
+          <Text style={styles.label}>Film Festival OS™ public directory</Text>
+          <View style={styles.row}>
+            {[false, true].map((item) => (
+              <Pressable
+                key={String(item)}
+                style={[styles.choice, directoryPublic === item && styles.choiceActive]}
+                onPress={() => {
+                  if (item && status !== 'published') {
+                    setMessage('Publish the profile first, then turn the directory listing ON.');
+                    return;
+                  }
+                  setMessage('');
+                  setDirectoryPublic(item);
+                }}
+              >
+                <Text style={styles.choiceText}>{item ? 'LISTED' : 'HIDDEN'}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Text style={styles.note}>
+            CURRENT LOADED STATE: {deliveryMode.toUpperCase()} · {status.toUpperCase()} · {directoryPublic ? 'LISTED' : 'HIDDEN'}
+          </Text>
+
+          <Text style={styles.label}>Directory slug</Text>
+          <TextInput
+            style={styles.input}
+            value={directorySlug}
+            onChangeText={(value) =>
+              setDirectorySlug(
+                value
+                  .toLowerCase()
+                  .replace(/[^a-z0-9-]+/g, '-')
+                  .replace(/^-+|-+$/g, '')
+              )
+            }
+            placeholder="colortape-international-film-festival"
+            autoCapitalize="none"
+          />
+
+          <Text style={styles.note}>
+            Online-only and hybrid editions can now be deliberately listed rather than being hidden inside a venue-only profile.
+          </Text>
 
           <Pressable style={styles.save} onPress={save} disabled={saving}>
             <Text style={styles.saveText}>
@@ -137,6 +268,20 @@ export default function FestivalProfile() {
           </Pressable>
 
           {!!message && <Text style={styles.message}>{message}</Text>}
+
+          <Pressable
+            style={styles.secondary}
+            onPress={() => router.push('/festival-directory')}
+          >
+            <Text style={styles.secondaryText}>OPEN PUBLIC FESTIVAL DIRECTORY →</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.secondary}
+            onPress={() => router.push('/ticketing')}
+          >
+            <Text style={styles.secondaryText}>OPEN TICKETING & VENUES →</Text>
+          </Pressable>
 
           <Pressable
             style={styles.secondary}
@@ -176,6 +321,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
     fontSize: 16,
+    color: '#111827',
+    backgroundColor: '#FFFFFF',
   },
   row: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   choice: {
@@ -187,6 +334,20 @@ const styles = StyleSheet.create({
   },
   choiceActive: { borderWidth: 2 },
   choiceText: { fontWeight: '700' },
+  note: { fontSize: 13, lineHeight: 19, opacity: 0.7 },
+  infoBox: {
+    borderWidth: 1,
+    borderColor: '#d8d8d8',
+    borderRadius: 10,
+    padding: 12,
+    gap: 4,
+    backgroundColor: '#F9FAFB',
+  },
+  infoTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.7,
+  },
   save: {
     backgroundColor: '#111',
     borderRadius: 10,
