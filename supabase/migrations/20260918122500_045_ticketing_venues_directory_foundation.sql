@@ -293,7 +293,7 @@ create or replace function public.assert_ticketed_event_capacity(
 returns void
 language plpgsql
 set search_path = public
-as $
+as $$
 declare
   v_event public.ticketed_events%rowtype;
   v_physical_capacity integer;
@@ -407,19 +407,19 @@ begin
     end if;
   end if;
 end;
-$;
+$$;
 
 
 create or replace function public.ticketed_event_capacity_guard_trigger()
 returns trigger
 language plpgsql
 set search_path = public
-as $
+as $$
 begin
   perform public.assert_ticketed_event_capacity(new.id);
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists ticketed_event_capacity_guard
 on public.ticketed_events;
@@ -443,7 +443,7 @@ create or replace function public.event_ticket_type_capacity_guard_trigger()
 returns trigger
 language plpgsql
 set search_path = public
-as $
+as $$
 begin
   if tg_op = 'DELETE' then
     perform public.assert_ticketed_event_capacity(old.event_id);
@@ -459,7 +459,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists event_ticket_type_capacity_guard
 on public.event_ticket_types;
