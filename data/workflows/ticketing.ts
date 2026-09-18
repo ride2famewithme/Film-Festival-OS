@@ -166,6 +166,7 @@ export async function createTicketType(values: {
   name: string;
   price_cents: number;
   currency?: string;
+  admission_mode?: 'in_person' | 'online' | 'hybrid';
   inventory_limit?: number | null;
 }) {
   const c = await manager();
@@ -183,6 +184,7 @@ export async function createTicketType(values: {
     name,
     price_cents: Math.round(price),
     currency: (values.currency || 'AUD').toUpperCase(),
+    admission_mode: values.admission_mode || 'in_person',
     inventory_limit: values.inventory_limit ?? null,
     status: 'active',
     updated_at: new Date().toISOString(),
