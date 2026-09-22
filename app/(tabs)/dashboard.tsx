@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { router, usePathname } from 'expo-router';
 import { UserRound } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { THEME } from '@/constants/theme';
@@ -31,6 +31,13 @@ type LiveFestivalData = {
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && pathname !== '/dashboard') {
+      router.replace('/dashboard');
+    }
+  }, [pathname]);
 
   const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
   const [activeTenantName, setActiveTenantName] = useState<string | null>(null);
@@ -176,7 +183,7 @@ export default function DashboardScreen() {
         if (workspace.role === 'platform_admin') {
           router.replace('/global-hq');
         } else {
-          router.replace('/(tabs)/dashboard');
+          router.replace('/dashboard');
         }
       } catch (error: any) {
         setWorkspaceMessage(
