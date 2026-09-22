@@ -66,7 +66,7 @@ export default function LoginScreen() {
       return;
     }
 
-    router.replace('/(tabs)/dashboard');
+    router.replace('/dashboard');
   };
 
 
