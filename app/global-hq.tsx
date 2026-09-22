@@ -170,7 +170,7 @@ export default function GlobalHqScreen() {
         if (workspace.role === 'platform_admin') {
           await load();
         } else {
-          router.replace('/(tabs)/dashboard');
+          router.replace('/dashboard');
         }
       } catch (error: any) {
         setMessage(error?.message ?? 'Workspace could not be changed.');
