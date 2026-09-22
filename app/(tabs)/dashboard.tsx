@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { THEME } from '@/constants/theme';
 import {
   getActiveContext,
+  getActiveSeason,
   listActiveMemberships,
   setActiveTenant,
 } from '@/data/session';
@@ -73,6 +74,8 @@ export default function DashboardScreen() {
           tenant?.name ? String(tenant.name) : context.tenantId
         );
 
+        const activeSeason = await getActiveSeason();
+
         const [
           profileResult,
           seasonsResult,
@@ -107,7 +110,7 @@ export default function DashboardScreen() {
         const profile = profileResult.data?.[0] ?? null;
         const seasons = (seasonsResult.data ?? []) as any[];
         const currentSeason =
-          seasons.find((season: any) => String(season.label) === '2026') ??
+          activeSeason ??
           seasons[0] ??
           null;
 
