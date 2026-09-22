@@ -35,6 +35,7 @@ export default function Season() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [rolloverLabel, setRolloverLabel] = useState('');
+  const [rolloverConfirm, setRolloverConfirm] = useState('');
   const [rollingOver, setRollingOver] = useState(false);
 
   const load = useCallback(async () => {
@@ -80,9 +81,18 @@ export default function Season() {
     setEventEndAt(dateOnly(row.event_end_at));
   };
 
+  const rolloverPhrase = rolloverLabel.trim()
+    ? `ROLL OVER ${rolloverLabel.trim()}`
+    : '';
+
   const rollover = async () => {
     if (!id || !rolloverLabel.trim()) {
       setMessage('Enter the new season / edition.');
+      return;
+    }
+
+    if (rolloverConfirm.trim() !== rolloverPhrase) {
+      setMessage(`Type ${rolloverPhrase} to confirm Roll-Over™.`);
       return;
     }
 
@@ -97,6 +107,7 @@ export default function Season() {
 
       await setActiveSeason(result.newSeasonId);
       setRolloverLabel('');
+      setRolloverConfirm('');
       await load();
 
       setMessage(
@@ -187,8 +198,14 @@ export default function Season() {
                 ]}
                 onPress={() => chooseSeason(season)}
               >
-                <Text style={styles.choiceText}>
+                <Text
+                  style={[
+                    styles.choiceText,
+                    String(season.id) === id && styles.choiceActiveText,
+                  ]}
+                >
                   {String(season.label ?? 'Untitled')} · {String(season.status ?? 'draft').toUpperCase()}
+                  {String(season.id) === id ? ' · ACTIVE' : ''}
                 </Text>
               </Pressable>
             ))}
@@ -255,14 +272,38 @@ export default function Season() {
           <TextInput
             style={styles.input}
             value={rolloverLabel}
-            onChangeText={setRolloverLabel}
+            onChangeText={(value) => {
+              setRolloverLabel(value);
+              setRolloverConfirm('');
+            }}
             placeholder="e.g. 2027, 2027/28, Season 12"
+          />
+
+          <Text style={styles.label}>Roll-Over confirmation</Text>
+          <Text style={styles.subtitle}>
+            {rolloverPhrase
+              ? `Type exactly: ${rolloverPhrase}`
+              : 'Enter the new season / edition above first.'}
+          </Text>
+
+          <TextInput
+            style={styles.input}
+            value={rolloverConfirm}
+            onChangeText={setRolloverConfirm}
+            autoCapitalize="characters"
+            placeholder="ROLL OVER 2027"
           />
 
           <Pressable
             style={styles.save}
             onPress={rollover}
-            disabled={rollingOver || saving || !id}
+            disabled={
+              rollingOver ||
+              saving ||
+              !id ||
+              !rolloverPhrase ||
+              rolloverConfirm.trim() !== rolloverPhrase
+            }
           >
             <Text style={styles.saveText}>
               {rollingOver
@@ -323,8 +364,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
-  choiceActive: { borderWidth: 2 },
+  choiceActive: { borderWidth: 2, backgroundColor: '#111' },
   choiceText: { fontWeight: '700' },
+  choiceActiveText: { color: '#fff' },
   save: {
     backgroundColor: '#111',
     borderRadius: 10,
