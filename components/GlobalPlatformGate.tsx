@@ -28,8 +28,8 @@ export function GlobalPlatformGate({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (blocking = true) => {
+    if (blocking) setLoading(true);
     setError('');
 
     const [stateResult, contextResult, membershipsResult] =
@@ -66,12 +66,18 @@ export function GlobalPlatformGate({
       setHasPlatformAdminAccess(false);
     }
 
-    setLoading(false);
+    if (blocking) setLoading(false);
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load, pathname]);
+    void load(true);
+  }, [load]);
+
+  useEffect(() => {
+    if (!loading) {
+      void load(false);
+    }
+  }, [pathname, load, loading]);
 
   const platformAdmin = role === 'platform_admin';
   const recoveryAdmin =
