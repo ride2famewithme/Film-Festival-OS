@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -35,6 +36,9 @@ export default function Screen() {
     useState<any[]>([]);
 
   const [busyId, setBusyId] =
+    useState<string | null>(null);
+
+  const [statusMessage, setStatusMessage] =
     useState<string | null>(null);
 
   const [checkoutSessions, setCheckoutSessions] =
@@ -83,13 +87,37 @@ export default function Screen() {
     void load();
   }, []);
 
+  const withTimeout = async <T,>(
+    promise: Promise<T>,
+    milliseconds = 30000,
+  ): Promise<T> =>
+    await Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                'PayPal Sandbox did not respond within 30 seconds.',
+              ),
+            ),
+          milliseconds,
+        ),
+      ),
+    ]);
+
   const startPayPal = async (payment: any) => {
     try {
       setBusyId(String(payment.id));
+      setStatusMessage(
+        'Contacting PayPal Sandbox…',
+      );
 
       const checkout =
-        await createPayPalSandboxCheckout(
-          String(payment.id),
+        await withTimeout(
+          createPayPalSandboxCheckout(
+            String(payment.id),
+          ),
         );
 
       setCheckoutSessions((old) => ({
@@ -125,6 +153,20 @@ export default function Screen() {
         },
       }));
 
+      setStatusMessage(
+        'PayPal Sandbox approval link ready. Opening PayPal…',
+      );
+
+      if (
+        Platform.OS === 'web' &&
+        typeof window !== 'undefined'
+      ) {
+        window.location.assign(
+          String(checkout.approval_url),
+        );
+        return;
+      }
+
       await Linking.openURL(
         String(checkout.approval_url),
       );
@@ -134,9 +176,16 @@ export default function Screen() {
         'Complete the test payment in PayPal. Then return to Film Festival OS™ and press CAPTURE APPROVED PAYMENT.',
       );
     } catch (e: any) {
+      const message =
+        e?.message ?? 'Unable to start checkout.';
+
+      setStatusMessage(
+        `PayPal Sandbox error: ${message}`,
+      );
+
       Alert.alert(
         'PayPal Sandbox',
-        e?.message ?? 'Unable to start checkout.',
+        message,
       );
     } finally {
       setBusyId(null);
@@ -218,7 +267,7 @@ export default function Screen() {
           Raw card or PayPal credentials are never stored here.
         </Text>
 
-        <View className="rounded-xl border border-primary p-3 mt-4 mb-5">
+        <View className="rounded-xl border border-primary p-3 mt-4 mb-3">
           <Text className="font-bold text-primary">
             PAYPAL SANDBOX TEST MODE
           </Text>
@@ -226,6 +275,16 @@ export default function Screen() {
             Test transactions only. No real money is processed.
           </Text>
         </View>
+
+        {!!statusMessage && (
+          <View className="rounded-xl border border-border bg-card p-3 mb-5">
+            <Text className="text-footnote text-card-foreground">
+              {statusMessage}
+            </Text>
+          </View>
+        )}
+
+        {!statusMessage && <View className="mb-2" />}
 
         <Pressable
           onPress={() => void load()}
