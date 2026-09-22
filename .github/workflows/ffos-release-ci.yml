@@ -1,0 +1,77 @@
+name: FFOS Release CI
+
+on:
+  push:
+    branches:
+      - ci/ffos-release-candidate-22sep2026
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Reject tracked secrets and local artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bad="$(git ls-files | grep -E '(^|/)\.env($|[._-])|(^|/)_ \.env$|\.DS_Store$|Screen Shot|\.BAK|_PRE_|\.BACKUP_|dist_ffos_' || true)"
+          if [ -n "$bad" ]; then
+            echo "Tracked local/secret/backup artifacts are not allowed:"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: Check migration version uniqueness
+        shell: bash
+        run: |
+          set -euo pipefail
+          dupes="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -print 2>/dev/null             | sed 's#.*/##'             | sed -nE 's/^([0-9]{14})_.*/\1/p'             | sort             | uniq -d)"
+          if [ -n "$dupes" ]; then
+            echo "Duplicate executable migration versions:"
+            echo "$dupes"
+            exit 1
+          fi
+
+      - name: TypeScript release check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f tsconfig.release.json ]; then
+            npx tsc --noEmit -p tsconfig.release.json
+          else
+            npx tsc --noEmit -p tsconfig.app-check.json
+          fi
+
+      - name: Web production bundle
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          EXPO_PUBLIC_ADAPTER: supabase
+        run: npx expo export --platform web --output-dir dist_ci
+
+      - name: Release gate summary
+        run: |
+          echo "FFOS Release CI passed."
+          echo "TypeScript: PASS"
+          echo "Web bundle: PASS"
+          echo "Secret/artifact scan: PASS"
+          echo "Migration filename sanity: PASS"
