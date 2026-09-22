@@ -24,6 +24,8 @@ import {
 import {
   createPayPalSandboxCheckout,
   capturePayPalSandboxOrder,
+  listPayPalSandboxCheckouts,
+  type PayPalSandboxCheckoutSession,
 } from '@/data/workflows/paypal-checkout';
 
 export default function Screen() {
@@ -35,13 +37,39 @@ export default function Screen() {
   const [busyId, setBusyId] =
     useState<string | null>(null);
 
-  const [checkoutIds, setCheckoutIds] =
-    useState<Record<string,string>>({});
+  const [checkoutSessions, setCheckoutSessions] =
+    useState<Record<string, PayPalSandboxCheckoutSession>>({});
 
   const load = async () => {
     try {
-      setRows(
-        await listSubmissionPayments(),
+      const paymentRows =
+        await listSubmissionPayments();
+
+      setRows(paymentRows);
+
+      const checkoutRows =
+        await listPayPalSandboxCheckouts(
+          paymentRows.map((row: any) =>
+            String(row.id),
+          ),
+        );
+
+      setCheckoutSessions(
+        checkoutRows.reduce(
+          (
+            acc: Record<
+              string,
+              PayPalSandboxCheckoutSession
+            >,
+            row,
+          ) => {
+            acc[
+              String(row.submission_payment_id)
+            ] = row;
+            return acc;
+          },
+          {},
+        ),
       );
     } catch (e: any) {
       Alert.alert(
@@ -64,10 +92,37 @@ export default function Screen() {
           String(payment.id),
         );
 
-      setCheckoutIds((old) => ({
+      setCheckoutSessions((old) => ({
         ...old,
-        [String(payment.id)]:
-          String(checkout.checkout_session_id),
+        [String(payment.id)]: {
+          id: String(
+            checkout.checkout_session_id,
+          ),
+          submission_payment_id:
+            String(payment.id),
+          status: 'approval_pending',
+          approval_url:
+            String(checkout.approval_url),
+          provider_order_id:
+            checkout.order_id
+              ? String(checkout.order_id)
+              : null,
+          provider_capture_id: null,
+          amount_due: Number(
+            checkout.amount ??
+              payment.amount_due ??
+              0,
+          ),
+          currency: String(
+            checkout.currency ??
+              payment.currency ??
+              '',
+          ),
+          created_at:
+            new Date().toISOString(),
+          updated_at:
+            new Date().toISOString(),
+        },
       }));
 
       await Linking.openURL(
@@ -91,8 +146,11 @@ export default function Screen() {
   const capturePayPal = async (
     payment: any,
   ) => {
+    const checkout =
+      checkoutSessions[String(payment.id)];
+
     const checkoutId =
-      checkoutIds[String(payment.id)];
+      checkout?.id;
 
     if (!checkoutId) {
       Alert.alert(
@@ -188,8 +246,11 @@ export default function Screen() {
               'pending' &&
             Number(r.amount_due) > 0;
 
+          const checkout =
+            checkoutSessions[paymentId];
+
           const checkoutId =
-            checkoutIds[paymentId];
+            checkout?.id;
 
           const busy =
             busyId === paymentId;
@@ -218,6 +279,12 @@ export default function Screen() {
                 {' · '}
                 Eligibility: {r.eligibility_status}
               </Text>
+
+              {!!checkout && (
+                <Text className="text-footnote text-muted-foreground mt-2">
+                  PayPal Sandbox checkout: {String(checkout.status).toUpperCase()}
+                </Text>
+              )}
 
               <Text className="text-footnote text-foreground mt-2">
                 Base{' '}
@@ -248,7 +315,26 @@ export default function Screen() {
                     </Text>
                   </Pressable>
 
-                  {!!checkoutId && (
+                  {!!checkout?.approval_url && (
+                    <Pressable
+                      disabled={busy}
+                      onPress={() =>
+                        void Linking.openURL(
+                          String(checkout.approval_url),
+                        )
+                      }
+                      className="mt-2 rounded-xl border border-border px-4 py-3 items-center"
+                    >
+                      <Text className="font-bold text-foreground">
+                        CONTINUE PAYPAL APPROVAL — SANDBOX
+                      </Text>
+                    </Pressable>
+                  )}
+
+                  {!!checkoutId &&
+                    !['completed', 'denied', 'cancelled', 'refunded', 'error'].includes(
+                      String(checkout?.status ?? ''),
+                    ) && (
                     <Pressable
                       disabled={busy}
                       onPress={() =>
