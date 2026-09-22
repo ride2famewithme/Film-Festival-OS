@@ -197,15 +197,26 @@ Deno.serve(async (req) => {
       .eq('scope', 'global')
       .limit(1);
 
+    if (policyError) {
+      return json(
+        {
+          error:
+            `FFOS payment policy query failed: ${policyError.message}`,
+          code:
+            String(policyError.code ?? ''),
+        },
+        503,
+      );
+    }
+
     if (
-      policyError ||
       !policyRows ||
       policyRows.length === 0
     ) {
       return json(
         {
           error:
-            'FFOS payment policy is unavailable',
+            'FFOS payment policy row is missing',
         },
         503,
       );
