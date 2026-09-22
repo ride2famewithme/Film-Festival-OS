@@ -8,6 +8,8 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      initialRouteName="dashboard"
+      backBehavior="initialRoute"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: THEME.accent,
