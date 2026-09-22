@@ -1,5 +1,5 @@
 import { db } from '@/data/db';
-import { getActiveContext } from '@/data/session';
+import { getActiveContext, getActiveSeason } from '@/data/session';
 import { can } from '@/data/access';
 import { writeAuditEvent } from '@/data/services';
 import { requireSupabaseClient } from '@/data/supabase-client';
@@ -24,10 +24,14 @@ export async function getJuryGovernanceSettings() {
 
 export async function listJuryPanelMembers() {
   const c = await manager();
+  const season = await getActiveSeason();
+  if (!season) return [];
+
   const r = await db
     .from<any>('jury_panel_members')
     .select('*')
     .eq('tenant_id', c.tenantId)
+    .eq('season_id', String(season.id))
     .order('invited_at', { ascending: true });
 
   if (r.error) throw new Error(r.error.message);
@@ -112,9 +116,14 @@ export async function createJuryPanelMember(v: {
   weight_percent: number;
 }) {
   const c = await manager();
+  const season = await getActiveSeason();
+
+  if (!season)
+    throw new Error('Select a festival season first.');
 
   const r = await db.from<any>('jury_panel_members').insert({
     tenant_id: c.tenantId,
+    season_id: String(season.id),
     display_label: v.display_label.trim(),
     juror_kind: v.juror_kind,
     weight_percent: v.weight_percent,

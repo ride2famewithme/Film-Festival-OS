@@ -1,3 +1,4 @@
+import { getActiveSeason } from '@/data/session';
 import { db } from '@/data/db';
 import { getActiveContext } from '@/data/session';
 import { can } from '@/data/access';
@@ -12,11 +13,70 @@ async function manager() {
   return ctx;
 }
 
-export async function listCategories() { const c=await manager(); const r=await db.from<any>('festival_categories').select('*').eq('tenant_id',c.tenantId).order('name'); if(r.error)throw new Error(r.error.message); return r.data??[]; }
-export async function createCategory(v:{name:string;currency:string;regular_fee:number;runtime_max_minutes?:number}) { const c=await manager(); const r=await db.from<any>('festival_categories').insert({...v,tenant_id:c.tenantId,status:'open',rules_version:'2026.1',updated_at:new Date().toISOString()}); if(r.error)throw new Error(r.error.message); const row=(r.data??[])[0]; await writeAuditEvent('category.created','festival_category',row?.id,{name:v.name}); return row; }
+export async function listCategories() {
+  const c = await manager();
+  const season = await getActiveSeason();
+  if (!season) return [];
+
+  const r = await db
+    .from<any>('festival_categories')
+    .select('*')
+    .eq('tenant_id', c.tenantId)
+    .eq('season_id', String(season.id))
+    .order('name');
+
+  if (r.error) throw new Error(r.error.message);
+  return r.data ?? [];
+}
+export async function createCategory(v:{
+  name:string;
+  currency:string;
+  regular_fee:number;
+  runtime_max_minutes?:number
+}) {
+  const c = await manager();
+  const season = await getActiveSeason();
+
+  if (!season)
+    throw new Error('Create or select a festival season first.');
+
+  const r = await db.from<any>('festival_categories').insert({
+    ...v,
+    tenant_id: c.tenantId,
+    season_id: String(season.id),
+    status: 'open',
+    rules_version: `${String(season.label)}.1`,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (r.error) throw new Error(r.error.message);
+
+  const row = (r.data ?? [])[0];
+  await writeAuditEvent(
+    'category.created',
+    'festival_category',
+    row?.id,
+    { name: v.name, season: String(season.label) }
+  );
+
+  return row;
+}
+
+
 export async function updateCategoryStatus(id:string,status:string){const c=await manager();const r=await db.from<any>('festival_categories').update({status,updated_at:new Date().toISOString()}).eq('id',id).eq('tenant_id',c.tenantId);if(r.error)throw new Error(r.error.message);await writeAuditEvent('category.status_changed','festival_category',id,{status});return (r.data??[])[0];}
 
-export async function listBenefits(){const c=await manager();const r=await db.from<any>('benefit_codes').select('*').eq('tenant_id',c.tenantId).order('updated_at',{ascending:false});if(r.error)throw new Error(r.error.message);return r.data??[];}
+export async function listBenefits(){
+  const c=await manager();
+  const season=await getActiveSeason();
+  if(!season)return [];
+  const r=await db.from<any>('benefit_codes')
+    .select('*')
+    .eq('tenant_id',c.tenantId)
+    .eq('season_id',String(season.id))
+    .order('updated_at',{ascending:false});
+  if(r.error)throw new Error(r.error.message);
+  return r.data??[];
+}
 export async function createBenefit(v:{
   code:string;
   kind:'percent'|'fixed'|'waiver'|'deadline';
@@ -33,6 +93,9 @@ export async function createBenefit(v:{
   category_ids?:string[];
 }) {
   const c=await manager();
+  const season=await getActiveSeason();
+  if(!season)throw new Error('Select a festival season first.');
+  const seasonId=String(season.id);
   const code=v.code.trim().toUpperCase();
 
   const r=await db.from<any>('benefit_codes').insert({
@@ -49,6 +112,7 @@ export async function createBenefit(v:{
     reason:v.reason?.trim()||null,
     usage_limit:v.usage_limit||null,
     tenant_id:c.tenantId,
+    season_id:seasonId,
     issued_by:c.userId,
     status:'active',
     uses_count:0,
@@ -98,15 +162,209 @@ export async function createBenefit(v:{
 
 export async function toggleBenefit(id:string,current:string){const c=await manager();const status=current==='active'?'paused':'active';const r=await db.from<any>('benefit_codes').update({status,updated_at:new Date().toISOString()}).eq('id',id).eq('tenant_id',c.tenantId);if(r.error)throw new Error(r.error.message);await writeAuditEvent('benefit.status_changed','benefit_code',id,{status});return (r.data??[])[0];}
 
-export async function listSubmissionPayments(){const c=await manager();const r=await db.from<any>('submission_payments').select('*').eq('tenant_id',c.tenantId).order('updated_at',{ascending:false});if(r.error)throw new Error(r.error.message);return r.data??[];}
-export async function assessSubmission(submissionId:string,categoryId:string,benefitCode?:string){const c=await manager();const cats=await db.from<any>('festival_categories').select('*').eq('id',categoryId).eq('tenant_id',c.tenantId);if(cats.error)throw new Error(cats.error.message);const cat=(cats.data??[])[0];if(!cat)throw new Error('Category not found');let discount=0;let code='';if(benefitCode?.trim()){const br=await db.from<any>('benefit_codes').select('*').eq('code',benefitCode.trim().toUpperCase()).eq('tenant_id',c.tenantId);if(br.error)throw new Error(br.error.message);const b=(br.data??[])[0];if(!b||b.status!=='active')throw new Error('Benefit code is not active');code=b.code;if(b.kind==='waiver')discount=Number(cat.regular_fee);else if(b.kind==='percent')discount=Number(cat.regular_fee)*(Number(b.value)/100);else discount=Math.min(Number(cat.regular_fee),Number(b.value));}
-const due=Math.max(0,Number(cat.regular_fee)-discount);const now=new Date().toISOString();const old=await db.from<any>('submission_payments').select('*').eq('submission_id',submissionId).eq('tenant_id',c.tenantId);if(old.error)throw new Error(old.error.message);let row;if((old.data??[])[0]){const id=(old.data??[])[0].id;const ur=await db.from<any>('submission_payments').update({category_id:categoryId,base_amount:Number(cat.regular_fee),discount_amount:discount,amount_due:due,currency:cat.currency,benefit_code:code||undefined,eligibility_status:'eligible',payment_status:due===0?'waived':'pending',updated_at:now}).eq('id',id).eq('tenant_id',c.tenantId);if(ur.error)throw new Error(ur.error.message);row=(ur.data??[])[0];}else{const ir=await db.from<any>('submission_payments').insert({tenant_id:c.tenantId,submission_id:submissionId,category_id:categoryId,base_amount:Number(cat.regular_fee),discount_amount:discount,amount_due:due,currency:cat.currency,benefit_code:code||undefined,eligibility_status:'eligible',payment_status:due===0?'waived':'pending',updated_at:now});if(ir.error)throw new Error(ir.error.message);row=(ir.data??[])[0];}
-await db.from<any>('submissions').update({category:cat.name,status:due===0?'payment_cleared':'payment_pending'}).eq('id',submissionId).eq('tenant_id',c.tenantId);await writeAuditEvent('submission.assessed','submission',submissionId,{categoryId,amountDue:due,currency:cat.currency,benefitCode:code||null});return row;}
-export async function markPaymentStatus(paymentId:string,submissionId:string,status:'paid'|'refunded'){const c=await manager();const r=await db.from<any>('submission_payments').update({payment_status:status,updated_at:new Date().toISOString()}).eq('id',paymentId).eq('tenant_id',c.tenantId);if(r.error)throw new Error(r.error.message);await db.from<any>('submissions').update({status:status==='paid'?'payment_cleared':'refund_recorded'}).eq('id',submissionId).eq('tenant_id',c.tenantId);await writeAuditEvent(`payment.${status}`,'submission_payment',paymentId,{submissionId});return (r.data??[])[0];}
+export async function listSubmissionPayments(){
+  const c=await manager();
+  const season=await getActiveSeason();
+  if(!season)throw new Error('Select a festival season first.');
+  const seasonId=String(season.id);
 
-export async function listAwards(){const c=await manager();const r=await db.from<any>('awards').select('*').eq('tenant_id',c.tenantId).order('updated_at',{ascending:false});if(r.error)throw new Error(r.error.message);return r.data??[];}
-export async function createAward(submissionId:string,awardName:string,resultStatus:string){const c=await manager();const now=new Date().toISOString();const r=await db.from<any>('awards').insert({tenant_id:c.tenantId,submission_id:submissionId,award_name:awardName,result_status:resultStatus,publication_status:'draft',decided_at:now,updated_at:now});if(r.error)throw new Error(r.error.message);const row=(r.data??[])[0];await writeAuditEvent('award.decision_recorded','award',row?.id,{submissionId,awardName,resultStatus});return row;}
-export async function publishAward(awardId:string,submissionId:string){const c=await manager();const now=new Date().toISOString();const r=await db.from<any>('awards').update({publication_status:'published',published_at:now,updated_at:now}).eq('id',awardId).eq('tenant_id',c.tenantId);if(r.error)throw new Error(r.error.message);await db.from<any>('submissions').update({status:'decision_published'}).eq('id',submissionId).eq('tenant_id',c.tenantId);await writeAuditEvent('award.published','award',awardId,{submissionId});return (r.data??[])[0];}
+  const r=await db.from<any>('submission_payments')
+    .select('*')
+    .eq('tenant_id',c.tenantId)
+    .eq('season_id',seasonId)
+    .order('updated_at',{ascending:false});
+
+  if(r.error)throw new Error(r.error.message);
+  return r.data??[];
+}
+export async function assessSubmission(submissionId:string,categoryId:string,benefitCode?:string){const c=await manager();const season=await getActiveSeason();if(!season)throw new Error('Select a festival season first.');const seasonId=String(season.id);const cats=await db.from<any>('festival_categories').select('*').eq('id',categoryId).eq('tenant_id',c.tenantId).eq('season_id',seasonId);if(cats.error)throw new Error(cats.error.message);const cat=(cats.data??[])[0];if(!cat)throw new Error('Category not found');let discount=0;let code='';if(benefitCode?.trim()){const br=await db.from<any>('benefit_codes').select('*').eq('code',benefitCode.trim().toUpperCase()).eq('tenant_id',c.tenantId).eq('season_id',seasonId);if(br.error)throw new Error(br.error.message);const b=(br.data??[])[0];if(!b||b.status!=='active')throw new Error('Benefit code is not active');code=b.code;if(b.kind==='waiver')discount=Number(cat.regular_fee);else if(b.kind==='percent')discount=Number(cat.regular_fee)*(Number(b.value)/100);else discount=Math.min(Number(cat.regular_fee),Number(b.value));}
+const submissionCheck=await db.from<any>('submissions')
+  .select('id')
+  .eq('id',submissionId)
+  .eq('tenant_id',c.tenantId)
+  .eq('season_id',seasonId);
+
+if(submissionCheck.error)throw new Error(submissionCheck.error.message);
+if(!(submissionCheck.data??[]).length)
+  throw new Error('Submission not found in active festival season.');
+
+const due=Math.max(0,Number(cat.regular_fee)-discount);
+const now=new Date().toISOString();
+
+const old=await db.from<any>('submission_payments')
+  .select('*')
+  .eq('submission_id',submissionId)
+  .eq('tenant_id',c.tenantId)
+  .eq('season_id',seasonId);
+
+if(old.error)throw new Error(old.error.message);
+
+let row;
+
+if((old.data??[])[0]){
+  const id=(old.data??[])[0].id;
+
+  const ur=await db.from<any>('submission_payments')
+    .update({
+      season_id:seasonId,
+      category_id:categoryId,
+      base_amount:Number(cat.regular_fee),
+      discount_amount:discount,
+      amount_due:due,
+      currency:cat.currency,
+      benefit_code:code||undefined,
+      eligibility_status:'eligible',
+      payment_status:due===0?'waived':'pending',
+      updated_at:now
+    })
+    .eq('id',id)
+    .eq('tenant_id',c.tenantId)
+    .eq('season_id',seasonId);
+
+  if(ur.error)throw new Error(ur.error.message);
+  row=(ur.data??[])[0];
+
+}else{
+  const ir=await db.from<any>('submission_payments').insert({
+    tenant_id:c.tenantId,
+    season_id:seasonId,
+    submission_id:submissionId,
+    category_id:categoryId,
+    base_amount:Number(cat.regular_fee),
+    discount_amount:discount,
+    amount_due:due,
+    currency:cat.currency,
+    benefit_code:code||undefined,
+    eligibility_status:'eligible',
+    payment_status:due===0?'waived':'pending',
+    updated_at:now
+  });
+
+  if(ir.error)throw new Error(ir.error.message);
+  row=(ir.data??[])[0];
+}
+await db.from<any>('submissions').update({category:cat.name,status:due===0?'payment_cleared':'payment_pending'}).eq('id',submissionId).eq('tenant_id',c.tenantId);await writeAuditEvent('submission.assessed','submission',submissionId,{categoryId,amountDue:due,currency:cat.currency,benefitCode:code||null});return row;}
+export async function markPaymentStatus(paymentId:string,submissionId:string,status:'paid'|'refunded'){
+  const c=await manager();
+  const season=await getActiveSeason();
+  if(!season)throw new Error('Select a festival season first.');
+  const seasonId=String(season.id);
+
+  const r=await db.from<any>('submission_payments')
+    .update({payment_status:status,updated_at:new Date().toISOString()})
+    .eq('id',paymentId)
+    .eq('tenant_id',c.tenantId)
+    .eq('season_id',seasonId);
+
+  if(r.error)throw new Error(r.error.message);
+
+  await db.from<any>('submissions')
+    .update({status:status==='paid'?'payment_cleared':'refund_recorded'})
+    .eq('id',submissionId)
+    .eq('tenant_id',c.tenantId)
+    .eq('season_id',seasonId);
+
+  await writeAuditEvent(
+    `payment.${status}`,
+    'submission_payment',
+    paymentId,
+    {submissionId,seasonId}
+  );
+
+  return (r.data??[])[0];
+}
+
+export async function listAwards(){
+  const c=await manager();
+  const season=await getActiveSeason();
+  if(!season)throw new Error('Select a festival season first.');
+  const seasonId=String(season.id);
+
+  const r=await db.from<any>('awards')
+    .select('*')
+    .eq('tenant_id',c.tenantId)
+    .eq('season_id',seasonId)
+    .order('updated_at',{ascending:false});
+
+  if(r.error)throw new Error(r.error.message);
+  return r.data??[];
+}
+export async function createAward(submissionId:string,awardName:string,resultStatus:string){
+  const c=await manager();
+  const season=await getActiveSeason();
+  if(!season)throw new Error('Select a festival season first.');
+  const seasonId=String(season.id);
+
+  const sr=await db.from<any>('submissions')
+    .select('id')
+    .eq('id',submissionId)
+    .eq('tenant_id',c.tenantId)
+    .eq('season_id',seasonId);
+
+  if(sr.error)throw new Error(sr.error.message);
+  if(!(sr.data??[]).length)
+    throw new Error('Submission not found in active festival season.');
+
+  const now=new Date().toISOString();
+
+  const r=await db.from<any>('awards').insert({
+    tenant_id:c.tenantId,
+    season_id:seasonId,
+    submission_id:submissionId,
+    award_name:awardName,
+    result_status:resultStatus,
+    publication_status:'draft',
+    decided_at:now,
+    updated_at:now
+  });
+
+  if(r.error)throw new Error(r.error.message);
+
+  const row=(r.data??[])[0];
+
+  await writeAuditEvent(
+    'award.decision_recorded',
+    'award',
+    row?.id,
+    {submissionId,awardName,resultStatus,seasonId}
+  );
+
+  return row;
+}
+export async function publishAward(awardId:string,submissionId:string){
+  const c=await manager();
+  const season=await getActiveSeason();
+  if(!season)throw new Error('Select a festival season first.');
+  const seasonId=String(season.id);
+  const now=new Date().toISOString();
+
+  const r=await db.from<any>('awards')
+    .update({
+      publication_status:'published',
+      published_at:now,
+      updated_at:now
+    })
+    .eq('id',awardId)
+    .eq('tenant_id',c.tenantId)
+    .eq('season_id',seasonId);
+
+  if(r.error)throw new Error(r.error.message);
+
+  await db.from<any>('submissions')
+    .update({status:'decision_published'})
+    .eq('id',submissionId)
+    .eq('tenant_id',c.tenantId)
+    .eq('season_id',seasonId);
+
+  await writeAuditEvent(
+    'award.published',
+    'award',
+    awardId,
+    {submissionId,seasonId}
+  );
+
+  return (r.data??[])[0];
+}
 export async function queueDecisionNotification(submissionId:string,subject:string,body:string){
   const c=await manager();
 
@@ -250,6 +508,7 @@ export async function createAwardSafe(
   const existing = await db.from<any>('awards')
     .select('*')
     .eq('tenant_id', c.tenantId)
+    .eq('season_id', String((await getActiveSeason())?.id ?? ''))
     .eq('submission_id', submissionId)
     .eq('award_name', cleanName);
 
@@ -268,4 +527,90 @@ export async function createAwardSafe(
   );
 
   return {...created, alreadyExists:false};
+}
+
+
+export async function updateCategoryAwardControls(
+  id: string,
+  values: {
+    award_enabled?: boolean;
+    nft_award_enabled?: boolean;
+    nft_value_override_enabled?: boolean;
+    winner_enabled?: boolean;
+    second_place_enabled?: boolean;
+    third_place_enabled?: boolean;
+    jury_choice_enabled?: boolean;
+    audience_choice_enabled?: boolean;
+    special_recognition_enabled?: boolean;
+    winner_reference_eth?: number;
+    second_place_reference_eth?: number;
+    third_place_reference_eth?: number;
+    jury_choice_reference_eth?: number;
+    audience_choice_reference_eth?: number;
+    special_recognition_reference_eth?: number;
+  }
+) {
+  const c = await manager();
+
+  const patch: any = {
+    ...values,
+    updated_at: new Date().toISOString(),
+  };
+
+  const r = await db
+    .from<any>('festival_categories')
+    .update(patch)
+    .eq('id', id)
+    .eq('tenant_id', c.tenantId);
+
+  if (r.error)
+    throw new Error(r.error.message);
+
+  await writeAuditEvent(
+    'category.award_controls_changed',
+    'festival_category',
+    id,
+    values
+  );
+
+  return (r.data ?? [])[0];
+}
+
+export async function updateAllCategoryAwardControls(
+  values: {
+    award_enabled?: boolean;
+    nft_award_enabled?: boolean;
+  }
+) {
+  const c = await manager();
+  const season = await getActiveSeason();
+
+  if (!season)
+    throw new Error('Select a festival season first.');
+
+  const patch: any = {
+    ...values,
+    updated_at: new Date().toISOString(),
+  };
+
+  const r = await db
+    .from<any>('festival_categories')
+    .update(patch)
+    .eq('tenant_id', c.tenantId)
+    .eq('season_id', String(season.id));
+
+  if (r.error)
+    throw new Error(r.error.message);
+
+  await writeAuditEvent(
+    'category.award_controls_bulk_changed',
+    'festival_category',
+    c.tenantId,
+    {
+      ...values,
+      seasonId: String(season.id),
+    }
+  );
+
+  return true;
 }

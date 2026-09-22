@@ -1,4 +1,4 @@
-import { CalendarDays, FileText, Gift, Globe2, Megaphone, Settings2, ShieldCheck, Ticket, Trophy, UsersRound, Workflow } from 'lucide-react-native';
+import { CalendarDays, FileText, Gift, Globe2, Megaphone, Settings2, ShieldCheck, Ticket, Trophy, UsersRound, WalletCards, Workflow } from 'lucide-react-native';
 import { OSHub } from '@/components/OSHub';
 import { festivalInfo } from '@/constants/data';
 
@@ -20,6 +20,7 @@ export default function FestivalScreen() {
       { title: 'Jury Management', detail: 'Private panel, assignments, conflicts, weighting, scoring progress and AI-juror boundary.', icon: ShieldCheck, route: '/jury' },
       { title: 'Submissions & Intake', detail: 'Entries, filters, flags, statuses, bulk workflow and submission records.', icon: Workflow, route: '/submissions' },
       { title: 'Waivers, Discounts & Benefits', detail: 'Waiver codes, campaign discounts, eligibility, usage limits and membership benefits.', icon: Gift, route: '/waivers' },
+      { title: 'Payments & Settlements Centre™', detail: 'Entry Ledger™, FFOS commission, refunds, monthly settlements, carry-forward balances and payout destinations.', icon: WalletCards, route: '/admin-finance' },
       { title: 'Notifications & Communications', detail: 'Submitter, jury and staff messages, templates and delivery workflow.', icon: Megaphone, route: '/communications' },
       { title: 'Awards & Laurels', detail: 'Selections, nominations, winners, approved laurels and publishing controls.', icon: Trophy, route: '/laurels' },
       { title: 'Reports & Exports', detail: 'Operational reports, jury progress, CSV/XLSX outputs and controlled export history.', icon: FileText, route: '/reports' },

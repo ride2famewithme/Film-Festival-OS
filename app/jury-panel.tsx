@@ -88,25 +88,57 @@ export default function JuryPanel() {
   const add = async () => {
     const n = Number(weight);
 
-    if (!label.trim())
-      return Alert.alert('Required', 'Juror label is required.');
+    if (!label.trim()) {
+      setAssignStatus(
+        'STOP: Juror label is required.'
+      );
+      return;
+    }
 
-    if (!Number.isFinite(n) || n <= 0)
-      return Alert.alert('Weight', 'Enter a valid percentage.');
+    if (!Number.isFinite(n) || n <= 0) {
+      setAssignStatus(
+        'STOP: Enter a valid voting weight percentage.'
+      );
+      return;
+    }
 
     setBusy(true);
+    setAssignStatus(
+      'WORKING: saving confidential panel member…'
+    );
 
     try {
-      await createJuryPanelMember({
-        display_label: label,
-        juror_kind: kind,
-        weight_percent: n,
-      });
+      const created =
+        await createJuryPanelMember({
+          display_label: label.trim(),
+          juror_kind: kind,
+          weight_percent: n,
+        });
+
+      console.log(
+        'JURY PANEL MEMBER CREATED:',
+        created
+      );
 
       setLabel('');
+
       await load();
+
+      setAssignStatus(
+        'SUCCESS: confidential panel member saved and panel reloaded.'
+      );
     } catch (e: any) {
-      Alert.alert('Could not add juror', e.message);
+      const message =
+        e?.message || String(e);
+
+      console.error(
+        'JURY PANEL MEMBER SAVE ERROR:',
+        e
+      );
+
+      setAssignStatus(
+        `ERROR: ${message}`
+      );
     } finally {
       setBusy(false);
     }

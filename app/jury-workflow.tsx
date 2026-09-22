@@ -18,6 +18,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { THEME } from '@/constants/theme';
+import { db } from '@/data/db';
 
 import {
   getAssignedScoringForm,
@@ -64,7 +65,69 @@ export default function JuryWorkflow() {
 
   async function load() {
     try {
-      setRows(await listMyJuryAssignments());
+      const assignments = await listMyJuryAssignments();
+
+      const enriched = await Promise.all(
+        assignments.map(async (row: any) => {
+          let submissionTitle =
+            row.submission_title ||
+            row.submission?.title ||
+            row.submissions?.title ||
+            row.film_title ||
+            '';
+
+          let scoringFormName =
+            row.scoring_form_name ||
+            row.form_name ||
+            row.scoring_form?.name ||
+            row.form?.name ||
+            '';
+
+          if (!submissionTitle && row.submission_id) {
+            try {
+              const sr = await db
+                .from<any>('submissions')
+                .select('id,title')
+                .eq('id', row.submission_id);
+
+              if (!sr.error) {
+                submissionTitle =
+                  String((sr.data ?? [])[0]?.title ?? '');
+              }
+            } catch {
+              // Display enhancement only — preserve queue if lookup is unavailable.
+            }
+          }
+
+          if (!scoringFormName) {
+            try {
+              const assigned =
+                await getAssignedScoringForm(row.id);
+
+              scoringFormName =
+                String(
+                  assigned?.form?.name ??
+                  assigned?.form?.title ??
+                  assigned?.form?.label ??
+                  assigned?.form?.form_name ??
+                  ''
+                );
+            } catch {
+              // Assignment remains usable even if display enrichment is unavailable.
+            }
+          }
+
+          return {
+            ...row,
+            __submission_title:
+              submissionTitle || String(row.submission_id ?? ''),
+            __scoring_form_name:
+              scoringFormName || 'ASSIGNED',
+          };
+        })
+      );
+
+      setRows(enriched);
     } catch (e: any) {
       Alert.alert('Jury queue', e.message);
     }
@@ -266,12 +329,14 @@ export default function JuryWorkflow() {
           purpose="Complete only the jury reviews assigned to you using the approved scoring form."
           steps={[
             'Open an ASSIGNED review.',
-            'Score and save each criterion using the allowed score range.',
+            'Score EACH criterion independently from 0–100, or the displayed range. Do NOT enter the criterion weight as the score.',
             'Review your recommendation and notes, then submit the final review once.',
           ]}
           terms={[
             { label: 'ASSIGNED', description: 'This submission has been allocated to you for judging.' },
             { label: 'CRITERION', description: 'One scored part of the approved judging form.' },
+            { label: 'SCORE', description: 'Your independent rating for that criterion, normally 0–100.' },
+            { label: 'WEIGHT', description: 'The percentage influence of that criterion on the final result. Weights collectively total 100%; the weight is NOT the score.' },
             { label: 'DRAFT REVIEW', description: 'Scores can still be completed or corrected before final submission.' },
             { label: 'SUBMITTED', description: 'The final jury review has been lodged and is no longer a working draft.' },
           ]}
@@ -297,7 +362,7 @@ export default function JuryWorkflow() {
           >
 
             <Text className="text-headline font-semibold text-card-foreground">
-              Submission {row.submission_id}
+              Submission {row.__submission_title || row.submission_id}
             </Text>
 
             <Text className="text-footnote text-muted-foreground mt-1">
@@ -306,9 +371,7 @@ export default function JuryWorkflow() {
 
             <Text className="text-footnote text-muted-foreground mt-1">
               Scoring Form:{' '}
-              {row.scoring_form_id
-                ? 'ASSIGNED'
-                : 'NOT ASSIGNED'}
+              {row.__scoring_form_name || 'ASSIGNED'}
             </Text>
 
 
@@ -359,6 +422,26 @@ export default function JuryWorkflow() {
             </Text>
 
 
+            <View className="rounded-2xl border border-primary bg-card p-4 mb-4">
+              <Text className="font-bold text-primary">
+                JURY SCORING RULE — SCORE ≠ WEIGHT
+              </Text>
+
+              <Text className="text-footnote text-card-foreground mt-2">
+                Score each criterion independently from 0–100, or within the displayed score range.
+                Do not enter the criterion weight as your score.
+              </Text>
+
+              <Text className="text-footnote text-muted-foreground mt-2">
+                Example: Sound may carry a 5% weight, but you can still score Sound 80/100.
+                Its weighted contribution is 4 points toward the final 100-point result.
+              </Text>
+
+              <Text className="text-footnote text-muted-foreground mt-2">
+                Criterion weights collectively total 100%. Film Festival OS™ calculates the weighted final score automatically.
+              </Text>
+            </View>
+
             {criteria.map((criterion) => {
               const key = String(criterion.id);
 
@@ -378,7 +461,7 @@ export default function JuryWorkflow() {
                   </Text>
 
                   <Text className="text-footnote text-muted-foreground mt-1">
-                    Weight: {criterion.weight_percent}% · Score:{' '}
+                    Weight: {criterion.weight_percent}% · Your score range:{' '}
                     {criterion.score_min}–{criterion.score_max}
                     {criterion.comment_required
                       ? ' · Comment REQUIRED'

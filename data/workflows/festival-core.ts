@@ -1,5 +1,5 @@
 import { db } from '@/data/db';
-import { getActiveContext } from '@/data/session';
+import { getActiveContext, getActiveSeason } from '@/data/session';
 import { can } from '@/data/access';
 import { writeAuditEvent } from '@/data/services';
 import { requireSupabaseClient } from '@/data/supabase-client';
@@ -13,14 +13,44 @@ async function ctxFor(permission: 'submission.manage'|'jury.review'|'jury.manage
 
 export async function listSubmissions() {
   const ctx = await ctxFor('submission.manage');
-  const r = await db.from<any>('submissions').select('*').eq('tenant_id', ctx.tenantId).order('submitted_at',{ascending:false});
-  if (r.error) throw new Error(r.error.message); return r.data ?? [];
+  const season = await getActiveSeason();
+  if (!season) throw new Error('Select a festival season first.');
+
+  const r = await db
+    .from<any>('submissions')
+    .select('*')
+    .eq('tenant_id', ctx.tenantId)
+    .eq('season_id', String(season.id))
+    .order('submitted_at',{ascending:false});
+
+  if (r.error) throw new Error(r.error.message);
+  return r.data ?? [];
 }
 export async function createSubmission(values:{title:string;filmmaker_name:string;email?:string;country?:string;category?:string}) {
   const ctx = await ctxFor('submission.manage');
-  const r = await db.from<any>('submissions').insert({...values,tenant_id:ctx.tenantId,owner_id:ctx.userId,status:'received',submitted_at:new Date().toISOString()});
-  if (r.error) throw new Error(r.error.message); const row=(r.data??[])[0];
-  await writeAuditEvent('submission.received','submission',row?.id,{title:values.title}); return row;
+  const season = await getActiveSeason();
+  if (!season) throw new Error('Select a festival season first.');
+
+  const r = await db.from<any>('submissions').insert({
+    ...values,
+    tenant_id: ctx.tenantId,
+    season_id: String(season.id),
+    owner_id: ctx.userId,
+    status: 'received',
+    submitted_at: new Date().toISOString()
+  });
+
+  if (r.error) throw new Error(r.error.message);
+  const row=(r.data??[])[0];
+
+  await writeAuditEvent(
+    'submission.received',
+    'submission',
+    row?.id,
+    {title:values.title, seasonId:String(season.id)}
+  );
+
+  return row;
 }
 export async function updateSubmissionStatus(id:string,status:string) {
   const ctx=await ctxFor('submission.manage');
@@ -29,8 +59,38 @@ export async function updateSubmissionStatus(id:string,status:string) {
 }
 export async function assignJuror(submissionId:string,jurorUserId:string) {
   const ctx=await ctxFor('jury.manage');
-  const r=await db.from<any>('jury_assignments').insert({tenant_id:ctx.tenantId,submission_id:submissionId,juror_user_id:jurorUserId,status:'assigned',assigned_at:new Date().toISOString()});
-  if(r.error) throw new Error(r.error.message); const row=(r.data??[])[0]; await writeAuditEvent('jury.assignment_created','jury_assignment',row?.id,{submissionId}); return row;
+  const season=await getActiveSeason();
+  if(!season) throw new Error('Select a festival season first.');
+  const seasonId=String(season.id);
+
+  const sr=await db.from<any>('submissions')
+    .select('id')
+    .eq('id',submissionId)
+    .eq('tenant_id',ctx.tenantId)
+    .eq('season_id',seasonId);
+
+  if(sr.error) throw new Error(sr.error.message);
+  if(!(sr.data??[]).length)
+    throw new Error('Submission not found in active festival season.');
+
+  const r=await db.from<any>('jury_assignments').insert({
+    tenant_id:ctx.tenantId,
+    season_id:seasonId,
+    submission_id:submissionId,
+    juror_user_id:jurorUserId,
+    status:'assigned',
+    assigned_at:new Date().toISOString()
+  });
+
+  if(r.error) throw new Error(r.error.message);
+  const row=(r.data??[])[0];
+  await writeAuditEvent(
+    'jury.assignment_created',
+    'jury_assignment',
+    row?.id,
+    {submissionId,seasonId}
+  );
+  return row;
 }
 
 export async function assignJurorWithScoringForm(
@@ -39,12 +99,16 @@ export async function assignJurorWithScoringForm(
   scoringFormId: string
 ) {
   const ctx = await ctxFor('jury.manage');
+  const season = await getActiveSeason();
+  if (!season) throw new Error('Select a festival season first.');
+  const seasonId = String(season.id);
 
   const submission = await db
     .from<any>('submissions')
     .select('id')
     .eq('id', submissionId)
-    .eq('tenant_id', ctx.tenantId);
+    .eq('tenant_id', ctx.tenantId)
+    .eq('season_id', seasonId);
 
   if (submission.error) throw new Error(submission.error.message);
 
@@ -72,6 +136,7 @@ export async function assignJurorWithScoringForm(
 
   const r = await db.from<any>('jury_assignments').insert({
     tenant_id: ctx.tenantId,
+    season_id: seasonId,
     submission_id: submissionId,
     juror_user_id: jurorUserId,
     scoring_form_id: scoringFormId,
@@ -100,10 +165,14 @@ export async function assignJurorWithScoringForm(
 
 export async function listMyJuryAssignments() {
   const ctx=await ctxFor('jury.review');
+  const season=await getActiveSeason();
+  if(!season) throw new Error('Select a festival season first.');
+
   const r=await db
     .from<any>('jury_assignments')
     .select('*')
     .eq('tenant_id',ctx.tenantId)
+    .eq('season_id',String(season.id))
     .eq('juror_user_id',ctx.userId)
     .eq('status','assigned')
     .eq('conflict_status','clear')
@@ -113,10 +182,40 @@ export async function listMyJuryAssignments() {
 }
 export async function submitJuryReview(assignmentId:string,submissionId:string,score:number,recommendation:string,notes:string) {
   const ctx=await ctxFor('jury.review');
-  const r=await db.from<any>('jury_reviews').insert({tenant_id:ctx.tenantId,assignment_id:assignmentId,submission_id:submissionId,juror_user_id:ctx.userId,score,recommendation,notes,status:'submitted',submitted_at:new Date().toISOString()});
+  const season=await getActiveSeason();
+  if(!season) throw new Error('Select a festival season first.');
+  const seasonId=String(season.id);
+
+  const r=await db.from<any>('jury_reviews').insert({
+    tenant_id:ctx.tenantId,
+    season_id:seasonId,
+    assignment_id:assignmentId,
+    submission_id:submissionId,
+    juror_user_id:ctx.userId,
+    score,
+    recommendation,
+    notes,
+    status:'submitted',
+    submitted_at:new Date().toISOString()
+  });
+
   if(r.error) throw new Error(r.error.message);
-  await db.from<any>('jury_assignments').update({status:'completed'}).eq('id',assignmentId).eq('tenant_id',ctx.tenantId).eq('juror_user_id',ctx.userId);
-  const row=(r.data??[])[0]; await writeAuditEvent('jury.review_submitted','jury_review',row?.id,{submissionId,score,recommendation}); return row;
+
+  await db.from<any>('jury_assignments')
+    .update({status:'completed'})
+    .eq('id',assignmentId)
+    .eq('tenant_id',ctx.tenantId)
+    .eq('season_id',seasonId)
+    .eq('juror_user_id',ctx.userId);
+
+  const row=(r.data??[])[0];
+  await writeAuditEvent(
+    'jury.review_submitted',
+    'jury_review',
+    row?.id,
+    {submissionId,score,recommendation,seasonId}
+  );
+  return row;
 }
 export async function queueSubmissionNotification(submissionId:string,recipientEmail:string,templateKey:string,subject:string,body:string) {
   const ctx=await ctxFor('submission.manage');
@@ -138,6 +237,24 @@ export async function getOrCreateDraftJuryReview(
   submissionId: string
 ) {
   const ctx = await ctxFor('jury.review');
+  const season = await getActiveSeason();
+  if (!season) throw new Error('Select a festival season first.');
+  const seasonId = String(season.id);
+
+  const assignment = await db
+    .from<any>('jury_assignments')
+    .select('id')
+    .eq('id', assignmentId)
+    .eq('submission_id', submissionId)
+    .eq('tenant_id', ctx.tenantId)
+    .eq('season_id', seasonId)
+    .eq('juror_user_id', ctx.userId);
+
+  if (assignment.error) throw new Error(assignment.error.message);
+
+  if (!(assignment.data ?? []).length) {
+    throw new Error('Jury assignment not found in active festival season.');
+  }
 
   const existing = await db
     .from<any>('jury_reviews')
@@ -154,6 +271,7 @@ export async function getOrCreateDraftJuryReview(
 
   const created = await db.from<any>('jury_reviews').insert({
     tenant_id: ctx.tenantId,
+    season_id: seasonId,
     assignment_id: assignmentId,
     submission_id: submissionId,
     juror_user_id: ctx.userId,
@@ -171,7 +289,7 @@ export async function getOrCreateDraftJuryReview(
     'jury.review_draft_created',
     'jury_review',
     row?.id,
-    { assignmentId, submissionId }
+    { assignmentId, submissionId, seasonId }
   );
 
   return row;
@@ -260,12 +378,16 @@ export async function getAssignedScoringForm(
   assignmentId: string
 ) {
   const ctx = await ctxFor('jury.review');
+  const season = await getActiveSeason();
+  if (!season) throw new Error('Select a festival season first.');
+  const seasonId = String(season.id);
 
   const assignmentResult = await db
     .from<any>('jury_assignments')
     .select('*')
     .eq('id', assignmentId)
     .eq('tenant_id', ctx.tenantId)
+    .eq('season_id', seasonId)
     .eq('juror_user_id', ctx.userId);
 
   if (assignmentResult.error) {

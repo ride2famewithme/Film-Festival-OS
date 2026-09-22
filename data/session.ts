@@ -43,3 +43,68 @@ export async function getActiveContext(): Promise<ActiveContext | null> {
     role: String((membership as any).role) as PlatformRole,
   };
 }
+
+const activeSeasonKey = (tenantId: string) =>
+  `ffos.activeSeasonId.${tenantId}`;
+
+export async function getActiveSeason() {
+  const context = await getActiveContext();
+  if (!context) return null;
+
+  const res = await db
+    .from<any>('festival_seasons')
+    .select('*')
+    .eq('tenant_id', context.tenantId)
+    .order('updated_at', { ascending: false });
+
+  if (res.error) throw new Error(res.error.message);
+
+  const rows = res.data ?? [];
+  if (!rows.length) return null;
+
+  const preferred = await AsyncStorage.getItem(
+    activeSeasonKey(context.tenantId)
+  );
+
+  const season =
+    rows.find((r: any) => String(r.id) === preferred) ??
+    rows.find((r: any) => String(r.status) === 'open') ??
+    rows.find((r: any) => String(r.status) === 'draft') ??
+    rows[0];
+
+  await AsyncStorage.setItem(
+    activeSeasonKey(context.tenantId),
+    String(season.id)
+  );
+
+  return season;
+}
+
+export async function setActiveSeason(
+  seasonId: string
+): Promise<void> {
+  const context = await getActiveContext();
+
+  if (!context)
+    throw new Error('Active festival workspace required');
+
+  const res = await db
+    .from<any>('festival_seasons')
+    .select('*')
+    .eq('id', seasonId)
+    .eq('tenant_id', context.tenantId);
+
+  if (res.error) throw new Error(res.error.message);
+
+  const row = (res.data ?? [])[0];
+
+  if (!row)
+    throw new Error(
+      'Season does not belong to the active festival workspace'
+    );
+
+  await AsyncStorage.setItem(
+    activeSeasonKey(context.tenantId),
+    seasonId
+  );
+}

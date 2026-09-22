@@ -19,6 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { THEME } from '@/constants/theme';
+import QuickGuideHelp from '@/components/QuickGuideHelp';
 import {
   activateScoringForm,
   addScoringCriterion,
@@ -541,6 +542,64 @@ export default function JuryScoringForms() {
         <Text className="text-title1 font-bold text-foreground mt-1">
           Scoring Forms™
         </Text>
+
+        <QuickGuideHelp
+          purpose="Create the approved judging form by defining criteria, score ranges, required comments and the percentage weight of each criterion."
+          steps={[
+            'Create or select a DRAFT scoring form.',
+            'Add each judging criterion and assign its importance as Weight %.',
+            'Make sure all criterion weights total exactly 100%.',
+            'Activate the form only when the criteria and weights are final.',
+          ]}
+          terms={[
+            {
+              label: 'WEIGHT %',
+              description: 'How much this criterion contributes to the final result. This is NOT the juror score.',
+            },
+            {
+              label: 'JUROR SCORE',
+              description: 'The juror independently scores each criterion, normally from 0–100.',
+            },
+            {
+              label: '100% TOTAL',
+              description: 'All criterion weights together must equal exactly 100% before activation.',
+            },
+            {
+              label: 'EXAMPLE',
+              description: 'Sound may have a 5% weight while the juror gives Sound 80/100. FFOS calculates 4 final points automatically.',
+            },
+          ]}
+          flow={[
+            'CREATE DRAFT',
+            'ADD CRITERIA',
+            'SET WEIGHTS = 100%',
+            'ACTIVATE',
+            'JURORS SCORE 0–100',
+          ]}
+        />
+
+        <View className="rounded-2xl border border-primary bg-card p-4 mt-4 mb-5">
+          <Text className="font-bold text-primary">
+            SCORING FORM ADMIN RULE — WEIGHT ≠ SCORE
+          </Text>
+                  <Text className="text-footnote text-primary mb-2">
+                    This is importance %, not the juror&apos;s score.
+                  </Text>
+
+          <Text className="text-footnote text-card-foreground mt-2">
+            Weight % controls the importance of a criterion. It is not the score a juror enters.
+          </Text>
+
+          <Text className="text-footnote text-muted-foreground mt-2">
+            Jurors normally score every criterion independently from 0–100.
+            Criterion weights collectively must total exactly 100%.
+          </Text>
+
+          <Text className="text-footnote text-muted-foreground mt-2">
+            Example: Sound weight 5% + Juror score 80/100 = 4 points toward the final 100-point result.
+          </Text>
+        </View>
+
 
         <Text className="text-subhead text-muted-foreground mt-1 mb-5">
           Versioned scoring criteria, weights, required comments and controlled activation.

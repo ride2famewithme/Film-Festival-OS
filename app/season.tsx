@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 
 import { createRow, listRows, updateRow } from '@/data/workflows/core';
+import { getActiveSeason, setActiveSeason } from '@/data/session';
+import { rolloverFestivalSeason } from '@/data/workflows/season-rollover';
 
 function dateOnly(value: unknown) {
   const text = String(value ?? '');
@@ -22,6 +24,7 @@ function isoDate(value: string) {
 
 export default function Season() {
   const [id, setId] = useState<string | null>(null);
+  const [seasons, setSeasons] = useState<any[]>([]);
   const [label, setLabel] = useState('2026');
   const [status, setStatus] = useState('draft');
   const [opensAt, setOpensAt] = useState('');
@@ -31,6 +34,8 @@ export default function Season() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [rolloverLabel, setRolloverLabel] = useState('');
+  const [rollingOver, setRollingOver] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -38,8 +43,10 @@ export default function Season() {
       setMessage('');
 
       const rows = await listRows('festival_seasons', 'festival.manage');
-      const row =
-        rows.find((item: any) => String(item.label) === '2026') ?? rows[0];
+      setSeasons(rows);
+
+      const active = await getActiveSeason();
+      const row = active ?? rows[0];
 
       if (row) {
         setId(String(row.id));
@@ -60,6 +67,50 @@ export default function Season() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const chooseSeason = async (row: any) => {
+    await setActiveSeason(String(row.id));
+
+    setId(String(row.id));
+    setLabel(String(row.label ?? ''));
+    setStatus(String(row.status ?? 'draft'));
+    setOpensAt(dateOnly(row.opens_at));
+    setNotificationAt(dateOnly(row.notification_at));
+    setEventStartAt(dateOnly(row.event_start_at));
+    setEventEndAt(dateOnly(row.event_end_at));
+  };
+
+  const rollover = async () => {
+    if (!id || !rolloverLabel.trim()) {
+      setMessage('Enter the new season / edition.');
+      return;
+    }
+
+    try {
+      setRollingOver(true);
+      setMessage('');
+
+      const result = await rolloverFestivalSeason(
+        id,
+        rolloverLabel.trim()
+      );
+
+      await setActiveSeason(result.newSeasonId);
+      setRolloverLabel('');
+      await load();
+
+      setMessage(
+        `Roll-Over complete — ${result.newLabel}. ` +
+        `${result.categoriesCopied} categories, ` +
+        `${result.jurorsInvited} jurors invited, ` +
+        `${result.benefitsCopied} benefits copied.`
+      );
+    } catch (error: any) {
+      setMessage(error?.message ?? 'Roll-Over failed.');
+    } finally {
+      setRollingOver(false);
+    }
+  };
 
   const save = async () => {
     if (!label.trim()) {
@@ -124,6 +175,25 @@ export default function Season() {
         <ActivityIndicator />
       ) : (
         <View style={styles.card}>
+          <Text style={styles.label}>Existing seasons</Text>
+
+          <View style={styles.row}>
+            {seasons.map((season: any) => (
+              <Pressable
+                key={String(season.id)}
+                style={[
+                  styles.choice,
+                  String(season.id) === id && styles.choiceActive,
+                ]}
+                onPress={() => chooseSeason(season)}
+              >
+                <Text style={styles.choiceText}>
+                  {String(season.label ?? 'Untitled')} · {String(season.status ?? 'draft').toUpperCase()}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
           <Text style={styles.label}>Season / edition</Text>
           <TextInput
             style={styles.input}
@@ -176,6 +246,34 @@ export default function Season() {
               </Pressable>
             ))}
           </View>
+
+          <Text style={styles.label}>Roll-Over™</Text>
+          <Text style={styles.subtitle}>
+            FROM: {label || 'Selected season'} → TO: new season / edition
+          </Text>
+
+          <TextInput
+            style={styles.input}
+            value={rolloverLabel}
+            onChangeText={setRolloverLabel}
+            placeholder="e.g. 2027, 2027/28, Season 12"
+          />
+
+          <Pressable
+            style={styles.save}
+            onPress={rollover}
+            disabled={rollingOver || saving || !id}
+          >
+            <Text style={styles.saveText}>
+              {rollingOver
+                ? 'ROLLING OVER...'
+                : 'ROLL OVER SELECTED SEASON™'}
+            </Text>
+          </Pressable>
+
+          <Text style={styles.subtitle}>
+            Creates a new DRAFT season. Dates remain editable.
+          </Text>
 
           <Pressable style={styles.save} onPress={save} disabled={saving}>
             <Text style={styles.saveText}>

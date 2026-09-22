@@ -32,6 +32,43 @@ function message(title:string, text:string) {
 }
 
 
+
+function suggestedDecisionNotification(row:any, award:any) {
+  const title =
+    row?.submission?.title?.trim() ||
+    'Film Festival Entry';
+
+  const decision =
+    award?.result_status?.trim() ||
+    'Festival Decision';
+
+  const awardName =
+    award?.award_name?.trim() || '';
+
+  const lines = [
+    'Dear Entrant,',
+    '',
+    'Thank you for submitting your work to our festival.',
+    '',
+    'We are writing to confirm the published festival decision for your submission.',
+    '',
+    `Film: ${title}`,
+    `Decision: ${decision}`,
+    awardName ? `Award / Category: ${awardName}` : null,
+    '',
+    'Please keep this message with your festival records.',
+    '',
+    'Kind regards,',
+    'Festival Team',
+  ].filter((line) => line !== null);
+
+  return {
+    subject: `${title} — ${decision}`,
+    body: lines.join('\n'),
+  };
+}
+
+
 export default function AwardDecisionsScreen() {
   const [rows, setRows] = useState<any[]>([]);
   const [selected, setSelected] = useState<any|null>(null);
@@ -178,6 +215,33 @@ export default function AwardDecisionsScreen() {
   async function queueNotification() {
     if (!selected)
       return;
+
+    const recipientEmail =
+      selected?.submission?.email?.trim();
+
+    if (!recipientEmail) {
+      message(
+        'Notification',
+        'This submission has no entrant email address.'
+      );
+      return;
+    }
+
+    if (!subject.trim()) {
+      message(
+        'Notification',
+        'Enter a notification subject before queueing.'
+      );
+      return;
+    }
+
+    if (!body.trim()) {
+      message(
+        'Notification',
+        'Enter a decision message before queueing.'
+      );
+      return;
+    }
 
     try {
       setBusy(true);
@@ -422,6 +486,41 @@ export default function AwardDecisionsScreen() {
 
                 {activeAward.publication_status === 'published' && (
                   <>
+                    <View className="rounded-2xl border border-border bg-background p-4 mb-4">
+                      <Text className="text-caption font-bold uppercase tracking-widest text-primary">
+                        ENTRANT NOTIFICATION
+                      </Text>
+
+                      <Text className="text-footnote text-card-foreground mt-2">
+                        Recipient: {selected?.submission?.email || 'NO EMAIL RECORDED'}
+                      </Text>
+
+                      <Text className="text-footnote text-muted-foreground mt-1">
+                        The notification is first placed into the controlled outbox.
+                        Delivery status is handled separately by the notification workflow.
+                      </Text>
+
+                      <Pressable
+                        disabled={busy}
+                        onPress={() => {
+                          const draft =
+                            suggestedDecisionNotification(
+                              selected,
+                              activeAward
+                            );
+
+                          setSubject(draft.subject);
+                          setBody(draft.body);
+                          setNotificationStatus('');
+                        }}
+                        className="rounded-xl border border-primary px-4 py-3 mt-4"
+                      >
+                        <Text className="font-bold text-primary text-center">
+                          Load Suggested Entrant Message
+                        </Text>
+                      </Pressable>
+                    </View>
+
                     <Text className="font-semibold text-card-foreground mb-1">
                       Decision Email Subject
                     </Text>
@@ -448,15 +547,30 @@ export default function AwardDecisionsScreen() {
                     <Pressable
                       disabled={
                         busy ||
+                        !selected?.submission?.email ||
+                        !subject.trim() ||
+                        !body.trim() ||
                         notificationStatus.startsWith('QUEUED') ||
                         notificationStatus.startsWith('ALREADY')
                       }
                       onPress={queueNotification}
-                      className="rounded-xl bg-primary px-4 py-3"
+                      className={`rounded-xl px-4 py-3 ${
+                        !selected?.submission?.email
+                          ? 'bg-muted opacity-60'
+                          : 'bg-primary'
+                      }`}
                     >
-                      <Text className="font-bold text-primary-foreground text-center">
+                      <Text
+                        className={`font-bold text-center ${
+                          !selected?.submission?.email
+                            ? 'text-muted-foreground'
+                            : 'text-primary-foreground'
+                        }`}
+                      >
                         {busy
                           ? 'Queueing…'
+                          : !selected?.submission?.email
+                          ? 'QUEUE DISABLED — NO ENTRANT EMAIL'
                           : notificationStatus.startsWith('QUEUED') ||
                             notificationStatus.startsWith('ALREADY')
                           ? 'Decision Notification Queued'
@@ -468,6 +582,24 @@ export default function AwardDecisionsScreen() {
                       <Text className="text-footnote text-muted-foreground mt-2">
                         {notificationStatus}
                       </Text>
+                    )}
+
+                    {!!activeAward?.id && (
+                      <Pressable
+                        onPress={() =>
+                          router.push({
+                            pathname: '/digital-award',
+                            params: {
+                              awardId: activeAward.id,
+                            },
+                          } as any)
+                        }
+                        className="rounded-xl border border-primary px-4 py-3 mt-3"
+                      >
+                        <Text className="font-bold text-center text-primary">
+                          OPEN DIGITAL / NFT AWARD
+                        </Text>
+                      </Pressable>
                     )}
                   </>
                 )}

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import {
   ArrowRight,
@@ -10,6 +10,7 @@ import {
   FolderKanban,
   Gauge,
   Globe2,
+  KeyRound,
   ServerCog,
   ShieldCheck,
   Users,
@@ -53,6 +54,7 @@ export default function GlobalHqScreen() {
   const [activeTenantName, setActiveTenantName] = useState<string | null>(null);
   const [workspaceOptions, setWorkspaceOptions] = useState<WorkspaceOption[]>([]);
   const [switchingTenantId, setSwitchingTenantId] = useState<string | null>(null);
+  const masterPulse = useRef(new Animated.Value(0.35)).current;
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -135,6 +137,26 @@ export default function GlobalHqScreen() {
     return () => clearTimeout(retry);
   }, [load]);
 
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(masterPulse, {
+          toValue: 1,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(masterPulse, {
+          toValue: 0.35,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    loop.start();
+    return () => loop.stop();
+  }, [masterPulse]);
+
   const switchWorkspace = useCallback(
     async (workspace: WorkspaceOption) => {
       if (workspace.tenantId === activeTenantId) return;
@@ -177,6 +199,7 @@ export default function GlobalHqScreen() {
     { title: 'Jury Management', subtitle: 'Private jury panel, scoring, weighting, integrity and recusal controls', icon: Gauge, route: '/jury' },
     { title: 'Project Management™', subtitle: 'Projects, tasks, KPIs, risks and delivery', icon: FolderKanban, route: '/project-management' },
     { title: 'Risk, Compliance & Resilience', subtitle: 'Risk, incidents, continuity, obligations and controls', icon: ShieldCheck, route: '/risk' },
+    { title: 'Control Library™', subtitle: 'Governance controls, ownership, review status and assurance evidence', icon: ShieldCheck, route: '/control-library' },
     { title: 'Reports & Exports', subtitle: 'Operational reporting, jury progress and controlled exports', icon: BarChart3, route: '/reports' },
     { title: 'AI Next Actions', subtitle: 'Priorities, blockers, management briefs and follow-up', icon: BrainCircuit, route: '/pm-ai-actions' },
     { title: 'System Health', subtitle: 'Operational readiness, integrations and diagnostics', icon: ServerCog, route: '/admin-health' },
@@ -204,7 +227,11 @@ export default function GlobalHqScreen() {
           </View>
 
           <View className="rounded-full border border-border bg-card px-3 py-2">
-            <Text className="text-caption font-bold text-primary">PLATFORM ADMIN</Text>
+            <Text className="text-caption font-bold text-primary">
+              {activeRole
+                ? activeRole.replace(/_/g, ' ').toUpperCase()
+                : 'NO ACTIVE ROLE'}
+            </Text>
           </View>
         </View>
 
@@ -334,6 +361,82 @@ export default function GlobalHqScreen() {
             </Pressable>
           </View>
         </View>
+
+        {activeRole === 'platform_admin' ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open Global Master Key"
+            onPress={() => router.push('/global-hq/master-control')}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.78 : 1,
+              overflow: 'hidden',
+            })}
+            className="rounded-3xl border border-primary bg-card p-5 mb-6"
+          >
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                width: 170,
+                height: 170,
+                borderRadius: 85,
+                borderWidth: 2,
+                borderColor: '#16f28b',
+                opacity: masterPulse,
+                right: -32,
+                top: -54,
+              }}
+            />
+
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                width: 108,
+                height: 108,
+                borderRadius: 54,
+                borderWidth: 1,
+                borderColor: '#16f28b',
+                opacity: masterPulse,
+                right: -1,
+                top: -23,
+              }}
+            />
+
+            <View className="flex-row items-center gap-4">
+              <View
+                style={{
+                  width: 54,
+                  height: 54,
+                  borderRadius: 27,
+                  borderWidth: 1,
+                  borderColor: '#16f28b',
+                  backgroundColor: '#03140d',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <KeyRound size={28} color="#27f59a" />
+              </View>
+
+              <View className="flex-1">
+                <Text className="text-caption font-bold uppercase tracking-widest text-primary">
+                  SCHILLER™ SECURED ACCESS
+                </Text>
+
+                <Text className="text-title3 font-bold text-card-foreground mt-1">
+                  GLOBAL MASTER KEY™
+                </Text>
+
+                <Text className="text-footnote text-muted-foreground mt-1">
+                  Password + MFA protected global platform authority
+                </Text>
+              </View>
+
+              <ArrowRight size={20} color={THEME.accent} />
+            </View>
+          </Pressable>
+        ) : null}
 
         <View className="flex-row items-center justify-between mb-3">
           <Text className="text-title3 font-semibold text-foreground">Network snapshot</Text>

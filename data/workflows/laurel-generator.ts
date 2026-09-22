@@ -1,5 +1,5 @@
 import { db } from '@/data/db';
-import { getActiveContext } from '@/data/session';
+import { getActiveContext, getActiveSeason } from '@/data/session';
 import { can } from '@/data/access';
 
 async function manager() {
@@ -15,12 +15,19 @@ async function manager() {
 
 export async function getLaurelPackage(awardId: string) {
   const ctx = await manager();
+  const season = await getActiveSeason();
+
+  if (!season)
+    throw new Error('Select a festival season first.');
+
+  const seasonId = String(season.id);
 
   const ar = await db
     .from<any>('awards')
     .select('*')
     .eq('id', awardId)
-    .eq('tenant_id', ctx.tenantId);
+    .eq('tenant_id', ctx.tenantId)
+    .eq('season_id', seasonId);
 
   if (ar.error) throw new Error(ar.error.message);
 
@@ -33,7 +40,8 @@ export async function getLaurelPackage(awardId: string) {
     .from<any>('submissions')
     .select('*')
     .eq('id', award.submission_id)
-    .eq('tenant_id', ctx.tenantId);
+    .eq('tenant_id', ctx.tenantId)
+    .eq('season_id', seasonId);
 
   if (sr.error) throw new Error(sr.error.message);
 
@@ -67,7 +75,8 @@ export async function getLaurelPackage(awardId: string) {
     .from<any>('laurel_outputs')
     .select('*')
     .eq('award_id', awardId)
-    .eq('tenant_id', ctx.tenantId);
+    .eq('tenant_id', ctx.tenantId)
+    .eq('season_id', seasonId);
 
   if (lr.error) throw new Error(lr.error.message);
 
@@ -79,6 +88,7 @@ export async function getLaurelPackage(awardId: string) {
       .from<any>('laurel_outputs')
       .insert({
         tenant_id: ctx.tenantId,
+        season_id: seasonId,
         award_id: award.id,
         submission_id: submission.id,
         format: 'svg',
@@ -96,7 +106,8 @@ export async function getLaurelPackage(awardId: string) {
       .from<any>('laurel_outputs')
       .select('*')
       .eq('award_id', awardId)
-      .eq('tenant_id', ctx.tenantId);
+      .eq('tenant_id', ctx.tenantId)
+      .eq('season_id', seasonId);
 
     if (lr.error) throw new Error(lr.error.message);
 

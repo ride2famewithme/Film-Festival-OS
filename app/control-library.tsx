@@ -16,6 +16,7 @@ import {
   ShieldCheck,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import QuickGuideHelp from '@/components/QuickGuideHelp';
 
 import {
   createGovernanceControl,
@@ -306,6 +307,60 @@ export default function ControlLibraryScreen() {
             </Text>
           </View>
         </View>
+
+        <QuickGuideHelp
+          purpose="Register, implement, test, remediate and close governance and operational controls for the active Film Festival OS™ workspace."
+          steps={[
+            'Create a control with a clear title and purpose.',
+            'Move the control from DESIGNED to IMPLEMENTED only when it actually exists in practice.',
+            'Test the control and record assurance evidence or notes.',
+            'If a test fails, remediate the issue and retest before closure.',
+            'Use Load Audit Trail™ to review the recorded lifecycle history.',
+          ]}
+          terms={[
+            {
+              label: 'DESIGNED',
+              description:
+                'The control has been defined but is not yet confirmed as operating.',
+            },
+            {
+              label: 'IMPLEMENTED',
+              description:
+                'The control has been put into operation and is ready for assurance testing.',
+            },
+            {
+              label: 'TESTED',
+              description:
+                'Assurance activity has been performed and the control has a recorded test outcome.',
+            },
+            {
+              label: 'FAILED',
+              description:
+                'Testing found the control ineffective or incomplete.',
+            },
+            {
+              label: 'REMEDIATION REQUIRED',
+              description:
+                'Corrective work is required before the control can be relied upon.',
+            },
+            {
+              label: 'CLOSED',
+              description:
+                'The control lifecycle or associated remediation has been formally completed.',
+            },
+          ]}
+          flow={[
+            'DESIGN',
+            'IMPLEMENT',
+            'TEST',
+            'PASS / FAIL',
+            'REMEDIATE',
+            'RETEST',
+            'CLOSE',
+          ]}
+        />
+
+        <View style={{ height: 18 }} />
 
         <View style={styles.summaryGrid}>
           <View style={styles.summaryCard}>

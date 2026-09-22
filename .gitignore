@@ -4,17 +4,15 @@
 
 expo-env.d.ts
 # @end expo-cli
-# Film Festival OS local/private files
-.env
-.env.*
-.env_*
-_ .env
-node_modules/
-.expo/
+# FFOS release hygiene — local/operator artifacts
 .DS_Store
-supabase/.temp/
-CODE_BACKUPS/
-downloads_Used by chatGPT/
+**/.DS_Store
+_ .env
+*.BAK*
+*.BACKUP*
 *_PRE_*
-*.BACKUP_*
-Screen Shot *.png
+*.DRAFT_NOT_APPLY
+dist_ffos_*/
+Screen Shot*.png
+FilmFestivalOS_TEST*.pdf
+/app/global-hq.tsx 2

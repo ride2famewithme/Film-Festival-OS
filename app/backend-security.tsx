@@ -6,16 +6,16 @@ export default function BackendSecurityScreen() {
     eyebrow="BACKEND · BLOCK 2"
     title="Authentication & Tenant Security"
     subtitle="Production-capable adapter path and database-side Row Level Security for the Film Festival OS™ multi-tenant architecture."
-    statusTitle="CODED · REQUIRES LIVE DATABASE CONFIGURATION & TESTING"
-    statusText="Supabase auth and RLS architecture is now in source. No live credentials are embedded. Policies must be applied and tested in a controlled Supabase project before production use."
+    statusTitle="LIVE TEST SECURITY FOUNDATION · SUPABASE + RLS ACTIVE"
+    statusText="Supabase authentication, memberships and database RLS are active in the controlled Film Festival OS™ test environment. Production deployment, production secrets, external providers and final release verification remain separate release tasks."
     items={[
-      { title: 'Production Adapter', detail: 'EXPO_PUBLIC_ADAPTER=supabase switches the shared data layer from mock storage to Supabase.', icon: DatabaseZap, badge: 'CODED' },
-      { title: 'Secure Sign-In Path', detail: 'Email/password sign-in now calls the shared auth adapter rather than simply navigating past the login screen.', icon: LockKeyhole, badge: 'CODED' },
-      { title: 'Tenant Membership Context', detail: 'Active tenant is selected only from the authenticated user’s active memberships.', icon: UsersRound, badge: 'CODED' },
-      { title: 'Database Row Security', detail: 'SQL migration enables RLS on tenants, memberships, projects, tasks, risks, incidents, suppliers and audit events.', icon: ShieldCheck, badge: 'MIGRATION' },
+      { title: 'Supabase Data Layer', detail: 'The current controlled test build uses Supabase-backed authentication and persistent operational data.', icon: DatabaseZap, badge: 'ACTIVE' },
+      { title: 'Secure Sign-In Path', detail: 'Authenticated sign-in, tenant membership selection and additional security paths are integrated with Supabase.', icon: LockKeyhole, badge: 'ACTIVE' },
+      { title: 'Tenant Membership Context', detail: 'Active tenant access is resolved from the authenticated user’s authorised memberships.', icon: UsersRound, badge: 'ACTIVE' },
+      { title: 'Database Row Security', detail: 'Applied migrations enforce tenant and role boundaries across core operational tables using Row Level Security.', icon: ShieldCheck, badge: 'ACTIVE' },
       { title: 'Role Enforcement', detail: 'Platform admin, festival owner/staff and creator-owned records receive database-level policy boundaries.', icon: KeyRound, badge: 'RLS' },
       { title: 'Audit Actor Protection', detail: 'Audit inserts require actor_user_id to match the authenticated user and an authorised tenant.', icon: Fingerprint, badge: 'RLS' },
-      { title: 'Next Backend Block', detail: 'Connect first persistent workflows: projects/tasks, festival profile/season, risk register, then controlled writes and audit events.', icon: ServerCog, badge: 'NEXT' },
+      { title: 'Release Security Work', detail: 'Remaining work includes production environment configuration, provider secrets, monitoring and final release assurance.', icon: ServerCog, badge: 'RELEASE' },
     ]}
   />;
 }
