@@ -23,10 +23,10 @@ export async function goWorkspaceHome() {
         return;
 
       default:
-        router.replace('/(tabs)/dashboard');
+        router.replace('/dashboard');
         return;
     }
   } catch {
-    router.replace('/(tabs)/dashboard');
+    router.replace('/dashboard');
   }
 }
