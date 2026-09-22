@@ -1,5 +1,37 @@
 import { requireSupabaseClient } from '@/data/supabase-client';
 
+async function edgeFunctionErrorMessage(
+  error: any,
+  fallback: string,
+): Promise<string> {
+  try {
+    const response = error?.context;
+
+    if (response && typeof response.clone === 'function') {
+      const copy = response.clone();
+      const contentType =
+        String(copy.headers?.get?.('content-type') ?? '');
+
+      if (contentType.includes('application/json')) {
+        const body = await copy.json();
+        const message =
+          body?.error ??
+          body?.message ??
+          body?.msg;
+
+        if (message) return String(message);
+      }
+
+      const text = await copy.text();
+      if (text?.trim()) return text.trim();
+    }
+  } catch {
+    // Fall through to the original SDK message.
+  }
+
+  return String(error?.message ?? fallback);
+}
+
 export type PayPalSandboxCheckoutSession = {
   id: string;
   submission_payment_id: string;
@@ -67,7 +99,12 @@ export async function createPayPalSandboxCheckout(
     );
 
   if (error)
-    throw new Error(error.message);
+    throw new Error(
+      await edgeFunctionErrorMessage(
+        error,
+        'Unable to start PayPal Sandbox checkout.',
+      ),
+    );
 
   if (data?.error)
     throw new Error(String(data.error));
@@ -102,7 +139,12 @@ export async function capturePayPalSandboxOrder(
     );
 
   if (error)
-    throw new Error(error.message);
+    throw new Error(
+      await edgeFunctionErrorMessage(
+        error,
+        'Unable to capture PayPal Sandbox order.',
+      ),
+    );
 
   if (data?.error)
     throw new Error(String(data.error));
