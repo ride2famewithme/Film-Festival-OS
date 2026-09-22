@@ -476,10 +476,27 @@ Deno.serve(async (req) => {
         })
         .eq('id', checkout.id);
 
+      const paypalError =
+        String(
+          tokenData?.error_description ??
+          tokenData?.error ??
+          '',
+        ).trim();
+
+      console.error(
+        'PAYPAL_SANDBOX_OAUTH_FAILED',
+        {
+          status:
+            tokenResponse.status,
+          paypal_error:
+            paypalError || null,
+        },
+      );
+
       return json(
         {
           error:
-            'Unable to authenticate with PayPal Sandbox',
+            `PayPal Sandbox OAuth failed (${tokenResponse.status})${paypalError ? `: ${paypalError}` : ''}`,
         },
         502,
       );
