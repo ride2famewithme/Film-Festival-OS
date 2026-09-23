@@ -112,6 +112,9 @@ Deno.serve(async (req) => {
         body?.reason ?? '',
       ).trim();
 
+    const dryRun =
+      body?.dry_run === true;
+
     if (!paymentId) {
       return json(
         {
@@ -383,6 +386,54 @@ Deno.serve(async (req) => {
 
     let refundRequest =
       existingRows?.[0] ?? null;
+
+    /*
+      SAFE AUTHENTICATED QA MODE.
+
+      Everything above this point is read-only:
+      authentication, finance authority, payment state,
+      provider checkout, capture, amount/currency and
+      existing refund-control state have been verified.
+
+      No refund record is created and PayPal is not called.
+    */
+
+    if (dryRun) {
+      return json({
+        ok: true,
+        dry_run: true,
+        authorised: true,
+        refund_eligible: true,
+
+        submission_payment_id:
+          payment.id,
+
+        checkout_session_id:
+          checkout.id,
+
+        provider:
+          'paypal',
+
+        environment:
+          'sandbox',
+
+        amount:
+          expectedAmount,
+
+        currency:
+          expectedCurrency,
+
+        existing_refund_status:
+          refundRequest?.status ??
+          null,
+
+        no_database_write:
+          true,
+
+        no_provider_call:
+          true,
+      });
+    }
 
     if (
       refundRequest?.status ===
