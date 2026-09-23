@@ -239,8 +239,38 @@ Deno.serve(async (req) => {
     const resource =
       event?.resource ?? {};
 
-    const captureId =
+    const resourceId =
       String(resource?.id ?? '');
+
+    const relatedCaptureId =
+      String(
+        resource
+          ?.supplementary_data
+          ?.related_ids
+          ?.capture_id ?? '',
+      );
+
+    const captureUpHref =
+      String(
+        (
+          resource?.links ?? []
+        ).find(
+          (link: any) =>
+            String(
+              link?.rel ?? '',
+            ).toLowerCase() === 'up' &&
+            String(
+              link?.href ?? '',
+            ).includes(
+              '/v2/payments/captures/',
+            ),
+        )?.href ?? '',
+      );
+
+    const linkedCaptureId =
+      captureUpHref.match(
+        /\/v2\/payments\/captures\/([^/?#]+)/,
+      )?.[1] ?? '';
 
     const orderId =
       String(
@@ -249,6 +279,23 @@ Deno.serve(async (req) => {
           ?.related_ids
           ?.order_id ?? '',
       );
+
+    const isRefundEvent =
+      eventType ===
+      'PAYMENT.CAPTURE.REFUNDED';
+
+    const captureId =
+      isRefundEvent
+        ? (
+            relatedCaptureId ||
+            linkedCaptureId
+          )
+        : resourceId;
+
+    const refundId =
+      isRefundEvent
+        ? resourceId
+        : '';
 
     if (
       !eventId ||
@@ -271,7 +318,9 @@ Deno.serve(async (req) => {
       eventType !==
         'PAYMENT.CAPTURE.COMPLETED' &&
       eventType !==
-        'PAYMENT.CAPTURE.DENIED'
+        'PAYMENT.CAPTURE.DENIED' &&
+      eventType !==
+        'PAYMENT.CAPTURE.REFUNDED'
     ) {
       return json({
         ok: true,
@@ -282,11 +331,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!orderId) {
+    if (
+      isRefundEvent
+        ? (!refundId || !captureId)
+        : !orderId
+    ) {
       return json(
         {
           error:
-            'Verified PayPal capture has no related order ID',
+            isRefundEvent
+              ? 'Verified PayPal refund is missing refund or capture identifiers'
+              : 'Verified PayPal capture has no related order ID',
         },
         400,
       );
@@ -310,45 +365,56 @@ Deno.serve(async (req) => {
     /*
       Match PayPal order to FFOS checkout session.
     */
+    let checkoutQuery =
+      admin
+        .from(
+          'payment_checkout_sessions',
+        )
+        .select('*')
+        .eq(
+          'provider',
+          'paypal',
+        )
+        .eq(
+          'environment',
+          'sandbox',
+        );
+
+    checkoutQuery =
+      isRefundEvent
+        ? checkoutQuery.eq(
+            'provider_capture_id',
+            captureId,
+          )
+        : checkoutQuery.eq(
+            'provider_order_id',
+            orderId,
+          );
+
     const {
       data: checkoutRows,
       error: checkoutError,
-    } = await admin
-      .from(
-        'payment_checkout_sessions',
-      )
-      .select('*')
-      .eq(
-        'provider_order_id',
-        orderId,
-      )
-      .eq(
-        'provider',
-        'paypal',
-      )
-      .eq(
-        'environment',
-        'sandbox',
-      )
-      .limit(1);
+    } =
+      await checkoutQuery.limit(1);
 
     if (
       checkoutError ||
       !checkoutRows?.[0]
     ) {
       console.error(
-        'PAYPAL_WEBHOOK_ORDER_NOT_FOUND',
+        'PAYPAL_WEBHOOK_CHECKOUT_NOT_FOUND',
         {
           eventId,
-          orderId,
+          eventType,
+          orderId:
+            orderId || null,
+          captureId:
+            captureId || null,
+          refundId:
+            refundId || null,
         },
       );
 
-      /*
-        Return 200 because the signature was valid.
-        The unmatched event remains visible
-        in PayPal's event log for investigation.
-      */
       return json({
         ok: true,
         verified: true,
@@ -447,7 +513,9 @@ Deno.serve(async (req) => {
             eventType,
 
           provider_reference:
-            captureId || orderId,
+            isRefundEvent
+              ? refundId
+              : captureId || orderId,
 
           verified:
             true,
@@ -469,12 +537,15 @@ Deno.serve(async (req) => {
 
           metadata: {
             order_id:
-              orderId,
+              orderId || null,
 
             capture_id:
               captureId || null,
 
-            capture_status:
+            refund_id:
+              refundId || null,
+
+            provider_status:
               resource?.status ??
               null,
           },
@@ -497,6 +568,65 @@ Deno.serve(async (req) => {
 
       providerEventId =
         inserted[0].id;
+    }
+
+    /*
+      VERIFIED PAYPAL FULL REFUND.
+
+      Signature verification and provider-event recording
+      have already succeeded above.
+
+      The service-role-only DB function atomically applies
+      the immutable adjustment, payment state, journal
+      provenance, checkout state and refund-control state.
+    */
+
+    if (isRefundEvent) {
+      const {
+        data: refundResult,
+        error: refundApplyError,
+      } = await admin.rpc(
+        'apply_verified_provider_full_refund',
+        {
+          p_provider_event_id:
+            providerEventId,
+        },
+      );
+
+      if (refundApplyError) {
+        console.error(
+          'PAYPAL_REFUND_APPLY_FAILED',
+          {
+            eventId,
+            captureId,
+            refundId,
+            error:
+              refundApplyError.message,
+          },
+        );
+
+        /*
+          Do NOT mark the provider event processed here.
+          A verified webhook retry may safely replay it.
+        */
+
+        return json(
+          {
+            error:
+              'Verified PayPal refund could not be applied to FFOS accounting',
+          },
+          500,
+        );
+      }
+
+      return json({
+        ok: true,
+        verified: true,
+        event_type:
+          eventType,
+        refund_result:
+          refundResult,
+      });
     }
 
     /*
