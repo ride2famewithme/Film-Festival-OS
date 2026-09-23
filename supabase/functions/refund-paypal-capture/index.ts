@@ -115,6 +115,14 @@ Deno.serve(async (req) => {
     const dryRun =
       body?.dry_run === true;
 
+    const confirmFullRefund =
+      body?.confirm_full_refund === true;
+
+    const confirmedPaymentId =
+      String(
+        body?.confirm_submission_payment_id ?? '',
+      ).trim();
+
     if (!paymentId) {
       return json(
         {
@@ -137,6 +145,32 @@ Deno.serve(async (req) => {
         {
           error:
             'Refund reason must be 500 characters or fewer',
+        },
+        400,
+      );
+    }
+
+    /*
+      REAL REFUND SAFETY INTERLOCK.
+
+      Dry-run requests never require confirmation.
+
+      Any request capable of contacting PayPal must carry:
+      1. explicit confirm_full_refund=true
+      2. the exact payment ID repeated as confirmation
+    */
+
+    if (
+      !dryRun &&
+      (
+        confirmFullRefund !== true ||
+        confirmedPaymentId !== paymentId
+      )
+    ) {
+      return json(
+        {
+          error:
+            'Explicit full refund confirmation is required',
         },
         400,
       );
