@@ -374,7 +374,8 @@ export default function Screen() {
                     </Text>
                   </Pressable>
 
-                  {!!checkout?.approval_url && (
+                  {!!checkout?.approval_url &&
+                    String(checkout?.status ?? '') === 'approval_pending' && (
                     <Pressable
                       disabled={busy}
                       onPress={() =>
