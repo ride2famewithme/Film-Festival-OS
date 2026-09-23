@@ -21,6 +21,10 @@ import {
   markPaymentStatus,
 } from '@/data/workflows/commercial-awards';
 
+import {
+  dryRunPayPalSandboxRefund,
+} from '@/data/workflows/paypal-checkout';
+
 export default function Screen() {
   const i = useSafeAreaInsets();
 
@@ -30,6 +34,12 @@ export default function Screen() {
   const [benefit, setBenefit] = useState('');
   const [selectedCats, setSelectedCats] = useState<Record<string, string>>({});
   const [openSelector, setOpenSelector] = useState<string | null>(null);
+
+  const [refundCheckResults, setRefundCheckResults] =
+    useState<Record<string, string>>({});
+
+  const [refundCheckBusy, setRefundCheckBusy] =
+    useState<Record<string, boolean>>({});
 
   const load = async () => {
     try {
@@ -296,10 +306,70 @@ export default function Screen() {
 
                     {p.payment_status === 'paid' &&
                     p.provider_backed ? (
-                      <View className="rounded-full border border-border px-3 py-2">
-                        <Text className="text-footnote text-muted-foreground">
-                          PROVIDER REFUND REQUIRED
-                        </Text>
+                      <View className="gap-2">
+                        <View className="rounded-full border border-border px-3 py-2">
+                          <Text className="text-footnote text-muted-foreground">
+                            PROVIDER REFUND REQUIRED
+                          </Text>
+                        </View>
+
+                        <Pressable
+                          disabled={refundCheckBusy[p.id] === true}
+                          onPress={async () => {
+                            setRefundCheckBusy((prev) => ({
+                              ...prev,
+                              [p.id]: true,
+                            }));
+
+                            setRefundCheckResults((prev) => ({
+                              ...prev,
+                              [p.id]: 'Checking authenticated refund controls...',
+                            }));
+
+                            try {
+                              const result =
+                                await dryRunPayPalSandboxRefund(
+                                  p.id
+                                );
+
+                              setRefundCheckResults((prev) => ({
+                                ...prev,
+                                [p.id]: [
+                                  'PASS',
+                                  `Authorised: ${String(result?.authorised)}`,
+                                  `Eligible: ${String(result?.refund_eligible)}`,
+                                  `Amount: ${String(result?.amount)} ${String(result?.currency)}`,
+                                  `Database write: ${result?.no_database_write ? 'NO' : 'YES'}`,
+                                  `PayPal call: ${result?.no_provider_call ? 'NO' : 'YES'}`,
+                                ].join(' | '),
+                              }));
+                            } catch (e: any) {
+                              setRefundCheckResults((prev) => ({
+                                ...prev,
+                                [p.id]:
+                                  `ERROR: ${e?.message ?? 'Safety check failed.'}`,
+                              }));
+                            } finally {
+                              setRefundCheckBusy((prev) => ({
+                                ...prev,
+                                [p.id]: false,
+                              }));
+                            }
+                          }}
+                          className="rounded-full border border-primary px-3 py-2"
+                        >
+                          <Text className="text-footnote text-primary">
+                            {refundCheckBusy[p.id]
+                              ? 'CHECKING...'
+                              : 'SAFE REFUND CHECK'}
+                          </Text>
+                        </Pressable>
+
+                        {!!refundCheckResults[p.id] && (
+                          <Text className="text-footnote text-muted-foreground">
+                            {refundCheckResults[p.id]}
+                          </Text>
+                        )}
                       </View>
                     ) : p.payment_status === 'paid' ? (
                       <Pressable

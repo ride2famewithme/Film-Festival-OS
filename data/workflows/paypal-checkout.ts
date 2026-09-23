@@ -151,3 +151,51 @@ export async function capturePayPalSandboxOrder(
 
   return data;
 }
+
+export async function dryRunPayPalSandboxRefund(
+  submissionPaymentId: string,
+  reason = 'FFOS authenticated refund safety QA',
+) {
+  const client = requireSupabaseClient();
+
+  const { data, error } =
+    await client.functions.invoke(
+      'refund-paypal-capture',
+      {
+        body: {
+          submission_payment_id:
+            submissionPaymentId,
+
+          reason,
+
+          dry_run: true,
+        },
+      },
+    );
+
+  if (error)
+    throw new Error(
+      await edgeFunctionErrorMessage(
+        error,
+        'Unable to run PayPal Sandbox refund safety check.',
+      ),
+    );
+
+  if (data?.error)
+    throw new Error(String(data.error));
+
+  if (data?.dry_run !== true)
+    throw new Error(
+      'Refund safety check did not return dry-run confirmation.',
+    );
+
+  if (
+    data?.no_database_write !== true ||
+    data?.no_provider_call !== true
+  )
+    throw new Error(
+      'Refund safety check did not confirm zero-write / zero-provider-call mode.',
+    );
+
+  return data;
+}
