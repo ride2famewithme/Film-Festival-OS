@@ -700,6 +700,9 @@ Deno.serve(async (req) => {
           payment_status:
             'paid',
 
+          provider_reference:
+            captureId || orderId,
+
           updated_at:
             new Date().toISOString(),
         })
