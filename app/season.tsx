@@ -24,6 +24,8 @@ function isoDate(value: string) {
 
 export default function Season() {
   const [id, setId] = useState<string | null>(null);
+  const [activeSeasonId, setActiveSeasonId] =
+    useState<string | null>(null);
   const [seasons, setSeasons] = useState<any[]>([]);
   const [label, setLabel] = useState('2026');
   const [status, setStatus] = useState('draft');
@@ -47,6 +49,7 @@ export default function Season() {
       setSeasons(rows);
 
       const active = await getActiveSeason();
+      setActiveSeasonId(active ? String(active.id) : null);
       const row = active ?? rows[0];
 
       if (row) {
@@ -69,9 +72,8 @@ export default function Season() {
     load();
   }, [load]);
 
-  const chooseSeason = async (row: any) => {
-    await setActiveSeason(String(row.id));
-
+  const chooseSeason = (row: any) => {
+    setMessage('');
     setId(String(row.id));
     setLabel(String(row.label ?? ''));
     setStatus(String(row.status ?? 'draft'));
@@ -80,6 +82,23 @@ export default function Season() {
     setEventStartAt(dateOnly(row.event_start_at));
     setEventEndAt(dateOnly(row.event_end_at));
   };
+  const makeActiveSeason = async () => {
+    if (!id || id === activeSeasonId) return;
+
+    try {
+      setMessage('');
+      await setActiveSeason(id);
+      setActiveSeasonId(id);
+      setMessage(
+        `${label || 'Selected season'} is now the ACTIVE operational season.`
+      );
+    } catch (error: any) {
+      setMessage(
+        error?.message ?? 'Unable to make selected season active.'
+      );
+    }
+  };
+
 
   const rolloverPhrase = rolloverLabel.trim()
     ? `ROLL OVER ${rolloverLabel.trim()}`
@@ -104,8 +123,6 @@ export default function Season() {
         id,
         rolloverLabel.trim()
       );
-
-      await setActiveSeason(result.newSeasonId);
       setRolloverLabel('');
       setRolloverConfirm('');
       await load();
@@ -205,11 +222,33 @@ export default function Season() {
                   ]}
                 >
                   {String(season.label ?? 'Untitled')} · {String(season.status ?? 'draft').toUpperCase()}
-                  {String(season.id) === id ? ' · ACTIVE' : ''}
+                  {String(season.id) === activeSeasonId ? ' · ACTIVE' : ''}
                 </Text>
               </Pressable>
             ))}
           </View>
+
+          <Text style={styles.subtitle}>
+            Highlighted = selected for editing. ACTIVE = season used by
+            submissions, jury, awards, payments and operational workflows.
+          </Text>
+
+          <Pressable
+            style={styles.save}
+            onPress={makeActiveSeason}
+            disabled={
+              !id ||
+              id === activeSeasonId ||
+              saving ||
+              rollingOver
+            }
+          >
+            <Text style={styles.saveText}>
+              {id === activeSeasonId
+                ? 'SELECTED SEASON IS ACTIVE'
+                : 'MAKE SELECTED SEASON ACTIVE'}
+            </Text>
+          </Pressable>
 
           <Text style={styles.label}>Season / edition</Text>
           <TextInput
