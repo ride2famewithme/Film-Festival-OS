@@ -12,6 +12,7 @@ import {
 import { createRow, listRows, updateRow } from '@/data/workflows/core';
 import { getActiveSeason, setActiveSeason } from '@/data/session';
 import { rolloverFestivalSeason } from '@/data/workflows/season-rollover';
+import QuickGuideHelp from '@/components/QuickGuideHelp';
 
 function dateOnly(value: unknown) {
   const text = String(value ?? '');
@@ -198,6 +199,45 @@ export default function Season() {
       <Text style={styles.subtitle}>
         Dates and season status are stored against the active festival tenant.
       </Text>
+
+      <QuickGuideHelp
+        purpose="Create, edit and control festival seasons without accidentally changing the operational season used by submissions, jury, awards and payments."
+        steps={[
+          'Click a season to select it for viewing or editing. Selecting it does NOT make it ACTIVE.',
+          'Edit the selected season fields and use SAVE SEASON only when you intend to save those changes.',
+          'Use MAKE SELECTED SEASON ACTIVE only when that season should become the operational festival season.',
+          'Use Roll-Over™ only for a planned new season or edition. It creates a new DRAFT season but does not make it ACTIVE.',
+          'Do not use Roll-Over™ to correct a typo or rename an existing season.',
+        ]}
+        terms={[
+          {
+            label: 'SELECTED',
+            description:
+              'The season currently highlighted for viewing or editing.',
+          },
+          {
+            label: 'ACTIVE',
+            description:
+              'The operational season used by season-scoped FFOS workflows.',
+          },
+          {
+            label: 'SAVE SEASON',
+            description:
+              'Saves edits to the selected season. It does not activate another season.',
+          },
+          {
+            label: 'ROLL-OVER™',
+            description:
+              'Creates the next DRAFT season from the selected season. Activation remains a separate deliberate action.',
+          },
+        ]}
+        flow={[
+          'SELECT SEASON',
+          'REVIEW / EDIT',
+          'SAVE IF NEEDED',
+          'MAKE ACTIVE ONLY WHEN READY',
+        ]}
+      />
 
       {loading ? (
         <ActivityIndicator />
