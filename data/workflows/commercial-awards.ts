@@ -175,7 +175,35 @@ export async function listSubmissionPayments(){
     .order('updated_at',{ascending:false});
 
   if(r.error)throw new Error(r.error.message);
-  return r.data??[];
+
+  const rows=r.data??[];
+  const paymentIds=rows.map((x:any)=>String(x.id));
+
+  if(paymentIds.length===0)return rows;
+
+  const cr=await db.from<any>('payment_checkout_sessions')
+    .select('submission_payment_id,status')
+    .eq('tenant_id',c.tenantId)
+    .eq('season_id',seasonId);
+
+  if(cr.error)throw new Error(cr.error.message);
+
+  const paymentIdSet=new Set(paymentIds);
+
+  const providerBackedIds=new Set(
+    (cr.data??[])
+      .filter((x:any)=>
+        paymentIdSet.has(String(x.submission_payment_id))
+      )
+      .map((x:any)=>String(x.submission_payment_id))
+  );
+
+  return rows.map((x:any)=>({
+    ...x,
+    provider_backed:
+      !!x.provider_reference ||
+      providerBackedIds.has(String(x.id)),
+  }));
 }
 export async function assessSubmission(submissionId:string,categoryId:string,benefitCode?:string){const c=await manager();const season=await getActiveSeason();if(!season)throw new Error('Select a festival season first.');const seasonId=String(season.id);const cats=await db.from<any>('festival_categories').select('*').eq('id',categoryId).eq('tenant_id',c.tenantId).eq('season_id',seasonId);if(cats.error)throw new Error(cats.error.message);const cat=(cats.data??[])[0];if(!cat)throw new Error('Category not found');let discount=0;let code='';if(benefitCode?.trim()){const br=await db.from<any>('benefit_codes').select('*').eq('code',benefitCode.trim().toUpperCase()).eq('tenant_id',c.tenantId).eq('season_id',seasonId);if(br.error)throw new Error(br.error.message);const b=(br.data??[])[0];if(!b||b.status!=='active')throw new Error('Benefit code is not active');code=b.code;if(b.kind==='waiver')discount=Number(cat.regular_fee);else if(b.kind==='percent')discount=Number(cat.regular_fee)*(Number(b.value)/100);else discount=Math.min(Number(cat.regular_fee),Number(b.value));}
 const submissionCheck=await db.from<any>('submissions')
@@ -249,6 +277,39 @@ export async function markPaymentStatus(paymentId:string,submissionId:string,sta
   const season=await getActiveSeason();
   if(!season)throw new Error('Select a festival season first.');
   const seasonId=String(season.id);
+
+  if(status==='paid' || status==='refunded'){
+    const pr=await db.from<any>('submission_payments')
+      .select('id,provider_reference')
+      .eq('id',paymentId)
+      .eq('tenant_id',c.tenantId)
+      .eq('season_id',seasonId)
+      .limit(1);
+
+    if(pr.error)throw new Error(pr.error.message);
+
+    const paymentRow=(pr.data??[])[0];
+
+    const cr=await db.from<any>('payment_checkout_sessions')
+      .select('id,provider,status')
+      .eq('submission_payment_id',paymentId)
+      .eq('tenant_id',c.tenantId)
+      .eq('season_id',seasonId)
+      .limit(1);
+
+    if(cr.error)throw new Error(cr.error.message);
+
+    if(
+      paymentRow?.provider_reference ||
+      (cr.data??[]).length>0
+    ){
+      throw new Error(
+        status==='paid'
+          ? 'Provider-backed payment cannot be manually marked paid. Use the verified provider payment workflow.'
+          : 'Provider-backed payment cannot be manually marked refunded. Use the provider refund workflow.'
+      );
+    }
+  }
 
   const r=await db.from<any>('submission_payments')
     .update({payment_status:status,updated_at:new Date().toISOString()})

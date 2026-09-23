@@ -262,15 +262,29 @@ export default function Screen() {
                   </Pressable>
 
                   <View className="flex-row gap-2 mt-3">
-                    {p.payment_status !== 'paid' && (
+                    {p.payment_status !== 'paid' &&
+                    p.provider_backed ? (
+                      <View className="rounded-full border border-border px-3 py-2">
+                        <Text className="text-footnote text-muted-foreground">
+                          PROVIDER PAYMENT CONTROLLED
+                        </Text>
+                      </View>
+                    ) : p.payment_status !== 'paid' ? (
                       <Pressable
                         onPress={async () => {
-                          await markPaymentStatus(
-                            p.id,
-                            s.id,
-                            'paid'
-                          );
-                          await load();
+                          try {
+                            await markPaymentStatus(
+                              p.id,
+                              s.id,
+                              'paid'
+                            );
+                            await load();
+                          } catch (e: any) {
+                            Alert.alert(
+                              'Payment safety control',
+                              e?.message ?? 'Payment action blocked.'
+                            );
+                          }
                         }}
                         className="rounded-full border border-primary px-3 py-2"
                       >
@@ -278,17 +292,31 @@ export default function Screen() {
                           Mark paid
                         </Text>
                       </Pressable>
-                    )}
+                    ) : null}
 
-                    {p.payment_status === 'paid' && (
+                    {p.payment_status === 'paid' &&
+                    p.provider_backed ? (
+                      <View className="rounded-full border border-border px-3 py-2">
+                        <Text className="text-footnote text-muted-foreground">
+                          PROVIDER REFUND REQUIRED
+                        </Text>
+                      </View>
+                    ) : p.payment_status === 'paid' ? (
                       <Pressable
                         onPress={async () => {
-                          await markPaymentStatus(
-                            p.id,
-                            s.id,
-                            'refunded'
-                          );
-                          await load();
+                          try {
+                            await markPaymentStatus(
+                              p.id,
+                              s.id,
+                              'refunded'
+                            );
+                            await load();
+                          } catch (e: any) {
+                            Alert.alert(
+                              'Refund safety control',
+                              e?.message ?? 'Refund action blocked.'
+                            );
+                          }
                         }}
                         className="rounded-full border border-border px-3 py-2"
                       >
@@ -296,7 +324,7 @@ export default function Screen() {
                           Record refund
                         </Text>
                       </Pressable>
-                    )}
+                    ) : null}
                   </View>
                 </>
               )}
