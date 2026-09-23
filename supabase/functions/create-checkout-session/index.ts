@@ -311,6 +311,87 @@ Deno.serve(async (req) => {
     let checkout =
       existingRows?.[0] ?? null;
 
+    /*
+      PayPal's default approval redirect window is 6 hours.
+      FFOS stops reusing approval-pending sessions after
+      5 hours so the payer is not sent to a near-expiry link.
+    */
+    const paypalApprovalReuseMaxAgeMs =
+      5 * 60 * 60 * 1000;
+
+    if (
+      checkout?.status ===
+        'approval_pending' &&
+      checkout?.provider_order_id &&
+      checkout?.approval_url
+    ) {
+      const approvalStartedAt =
+        Date.parse(
+          String(
+            checkout.updated_at ??
+            checkout.created_at ??
+            '',
+          ),
+        );
+
+      const approvalAgeMs =
+        Date.now() - approvalStartedAt;
+
+      const approvalIsFresh =
+        Number.isFinite(
+          approvalStartedAt,
+        ) &&
+        approvalAgeMs >= 0 &&
+        approvalAgeMs <
+          paypalApprovalReuseMaxAgeMs;
+
+      if (!approvalIsFresh) {
+        const {
+          data: staleCheckoutRows,
+          error: staleCheckoutError,
+        } = await admin
+          .from(
+            'payment_checkout_sessions',
+          )
+          .update({
+            status: 'error',
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq('id', checkout.id)
+          .eq(
+            'status',
+            'approval_pending',
+          )
+          .select('id');
+
+        if (staleCheckoutError) {
+          return json(
+            {
+              error:
+                `Unable to retire stale PayPal approval session: ${staleCheckoutError.message}`,
+            },
+            500,
+          );
+        }
+
+        if (
+          !staleCheckoutRows ||
+          staleCheckoutRows.length !== 1
+        ) {
+          return json(
+            {
+              error:
+                'PayPal checkout state changed while refreshing. Please try again.',
+            },
+            409,
+          );
+        }
+
+        checkout = null;
+      }
+    }
+
     if (
       checkout?.provider_order_id &&
       checkout?.approval_url
