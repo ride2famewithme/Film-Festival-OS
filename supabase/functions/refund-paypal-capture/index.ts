@@ -285,7 +285,8 @@ Deno.serve(async (req) => {
     */
 
     if (
-      payment.payment_status !== 'paid'
+      payment.payment_status !== 'paid' &&
+      !(dryRun && payment.payment_status === 'refunded')
     ) {
       return json(
         {
@@ -433,11 +434,72 @@ Deno.serve(async (req) => {
     */
 
     if (dryRun) {
+      const {
+        data: auditRows,
+        error: auditError,
+      } = await admin
+        .from('payment_provider_events')
+        .select(
+          'provider_event_id,provider_reference,processed,processing_result,received_at',
+        )
+        .eq('provider', 'paypal')
+        .eq('environment', 'sandbox')
+        .eq('checkout_session_id', checkout.id)
+        .eq('submission_payment_id', payment.id)
+        .eq('event_type', 'PAYMENT.CAPTURE.REFUNDED')
+        .eq('verified', true)
+        .contains('metadata', {
+          capture_id: captureId,
+        })
+        .order('received_at', {
+          ascending: false,
+        })
+        .limit(1);
+
+      if (auditError) {
+        return json({
+          error: 'Unable to read verified PayPal refund audit',
+        }, 500);
+      }
+
+      const auditEvent = auditRows?.[0] ?? null;
+
+      const refundApplied =
+        payment.payment_status === 'refunded' &&
+        checkout.status === 'refunded' &&
+        auditEvent?.processed === true &&
+        (
+          auditEvent.processing_result ===
+            'payment_marked_refunded' ||
+          auditEvent.processing_result ===
+            'external_provider_refund_recorded'
+        );
+
       return json({
         ok: true,
         dry_run: true,
         authorised: true,
-        refund_eligible: true,
+        refund_eligible:
+          payment.payment_status === 'paid',
+
+        refund_applied_by_verified_webhook:
+          refundApplied,
+
+        verified_refund_webhook:
+          auditEvent
+            ? {
+                provider_event_id:
+                  auditEvent.provider_event_id,
+                provider_refund_id:
+                  auditEvent.provider_reference,
+                processed:
+                  auditEvent.processed,
+                processing_result:
+                  auditEvent.processing_result,
+                received_at:
+                  auditEvent.received_at,
+              }
+            : null,
 
         submission_payment_id:
           payment.id,
