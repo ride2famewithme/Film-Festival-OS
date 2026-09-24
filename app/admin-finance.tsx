@@ -269,6 +269,14 @@ export default function Screen(){
               {' · '}
               Festival {money(r.festival_entitlement_amount,r.currency)}
             </Text>
+
+            {Number(r.refund_amount ?? 0) > 0 && (
+              <Text className="text-footnote text-muted-foreground mt-2">
+                Refunded {money(r.refund_amount,r.currency)}
+                {' · '}
+                Commission recorded {money(r.ffos_commission_amount,r.currency)}
+              </Text>
+            )}
           </View>
         ))}
 
@@ -549,6 +557,25 @@ export default function Screen(){
             <Text className="text-footnote text-muted-foreground mt-2">
               {r.reason}
             </Text>
+
+            {r.adjustment_type === 'refund' &&
+             r.provider === 'paypal' &&
+             r.environment === 'sandbox' &&
+             r.provider_reference && (
+              <View className="mt-3 rounded-xl border border-border bg-background p-3">
+                <Text className="text-footnote font-bold text-foreground">
+                  PAYPAL SANDBOX REFUND RECEIPT
+                </Text>
+
+                <Text className="text-footnote text-foreground mt-2">
+                  Refund ID: {r.provider_reference}
+                </Text>
+
+                <Text className="text-footnote text-muted-foreground mt-1">
+                  FFOS commission retained: {r.ffos_commission_retained ? 'YES' : 'NO'}
+                </Text>
+              </View>
+            )}
           </View>
         ))}
 
