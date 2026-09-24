@@ -232,7 +232,8 @@ export default function Screen(){
               </Text>
 
               <Text className="text-footnote text-foreground mt-1">
-                {money(latest.available_for_payout ?? latest.net_festival_payout,latest.currency)}
+                {latest.status === 'draft' ? 'Draft net: ' : ''}
+                {money(latest.status === 'draft' ? latest.net_festival_payout : (latest.available_for_payout ?? latest.net_festival_payout),latest.currency)}
                 {' · '}
                 {String(latest.status).toUpperCase()}
               </Text>
