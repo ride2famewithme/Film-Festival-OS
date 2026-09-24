@@ -21,6 +21,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { goWorkspaceHome } from '@/lib/navigation';
+import { getActiveContext } from '@/data/session';
 import { THEME } from '@/constants/theme';
 import QuickGuideHelp from '@/components/QuickGuideHelp';
 import { US_STATE_OPTIONS } from '@/data/reference/us-states';
@@ -177,6 +178,9 @@ export default function NetworkScreen() {
 
   const [rows, setRows] =
     useState<any[]>([]);
+
+  const [canConfigureNetwork, setCanConfigureNetwork] =
+    useState(false);
 
   const [refreshing, setRefreshing] =
     useState(false);
@@ -791,10 +795,17 @@ export default function NetworkScreen() {
       setMessage('');
 
       try {
+        const active = await getActiveContext();
+
+        setCanConfigureNetwork(
+          active?.role === 'platform_admin'
+        );
+
         setRows(
           await listFranchiseNetwork()
         );
       } catch (error: any) {
+        setCanConfigureNetwork(false);
         setRows([]);
 
         setMessage(
@@ -940,6 +951,7 @@ export default function NetworkScreen() {
           )}
         </View>
 
+        {canConfigureNetwork ? (
         <View className="rounded-2xl border border-border bg-card p-5 mt-8">
           <Text className="text-footnote font-semibold uppercase tracking-widest text-primary">
             PLATFORM ADMIN CONTROL
@@ -1481,6 +1493,18 @@ export default function NetworkScreen() {
             Platform Admin only. The database validates hierarchy and rolls back the whole operation if any step fails.
           </Text>
         </View>
+        ) : (
+          <View className="rounded-2xl border border-border bg-card p-4 mt-8">
+            <Text className="font-semibold text-card-foreground">
+              Read-only franchise view
+            </Text>
+            <Text className="text-footnote text-muted-foreground mt-2">
+              To create a franchise or operator, switch to Film Festival OS™
+              Global HQ / Platform Admin in Workspace Access, then reopen
+              this page.
+            </Text>
+          </View>
+        )}
 
         <View className="flex-row items-center justify-between mt-8 mb-3">
           <View>
@@ -1553,7 +1577,8 @@ export default function NetworkScreen() {
 
         {!message &&
           !refreshing &&
-          rows.length === 0 && (
+          rows.length === 0 &&
+          canConfigureNetwork && (
             <View className="rounded-2xl border border-border bg-card p-5">
               <Text className="font-semibold text-card-foreground">
                 No franchise profiles yet
