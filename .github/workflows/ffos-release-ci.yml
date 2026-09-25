@@ -61,6 +61,26 @@ jobs:
             npx tsc --noEmit -p tsconfig.app-check.json
           fi
 
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Check Supabase Edge Functions
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(supabase/functions/*/index.ts)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "STOP: No Edge Functions found"
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            deno check --no-lock --node-modules-dir=none "$file"
+            echo "PASS: $file"
+          done
+
       - name: Web production bundle
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
@@ -72,6 +92,7 @@ jobs:
         run: |
           echo "FFOS Release CI passed."
           echo "TypeScript: PASS"
+          echo "Supabase Edge Functions: PASS"
           echo "Web bundle: PASS"
           echo "Secret/artifact scan: PASS"
           echo "Migration filename sanity: PASS"
