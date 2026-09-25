@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { UserRound } from 'lucide-react-native';
+import { ArrowRight, ShieldCheck, UserRound } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { THEME } from '@/constants/theme';
 import {
@@ -188,6 +188,11 @@ export default function DashboardScreen() {
     [activeTenantId]
   );
 
+  const hqWorkspace =
+    workspaceOptions.find(
+      (option) => option.role === 'platform_admin'
+    ) ?? null;
+
   return (
     <View className="flex-1 bg-background">
       <ScrollView
@@ -220,6 +225,39 @@ export default function DashboardScreen() {
             <UserRound size={19} color={THEME.accent} />
           </Pressable>
         </View>
+
+        {/* DIRECT GLOBAL HQ ACCESS — AUTHORISED ADMINS ONLY */}
+        {hqWorkspace ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open Global HQ"
+            disabled={switchingTenantId !== null}
+            onPress={() => {
+              if (hqWorkspace.tenantId === activeTenantId) {
+                router.replace('/global-hq');
+              } else {
+                void switchWorkspace(hqWorkspace);
+              }
+            }}
+            style={({ pressed }) => ({
+              opacity: switchingTenantId !== null
+                ? 0.5
+                : pressed ? 0.76 : 1,
+            })}
+            className="rounded-2xl bg-primary border border-primary px-5 py-4 mb-5 min-h-[76px] flex-row items-center gap-3"
+          >
+            <ShieldCheck size={27} color={THEME.accentFg} />
+            <View className="flex-1">
+              <Text className="text-headline font-bold text-primary-foreground">
+                OPEN GLOBAL HQ
+              </Text>
+              <Text className="text-footnote text-primary-foreground mt-1">
+                Platform Administration · People & Roles
+              </Text>
+            </View>
+            <ArrowRight size={23} color={THEME.accentFg} />
+          </Pressable>
+        ) : null}
 
         {/* DASHBOARD WORKSPACE ACCESS */}
         <View className="rounded-2xl border border-border bg-card p-4 mb-5">

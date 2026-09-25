@@ -235,6 +235,53 @@ export default function GlobalHqScreen() {
           </View>
         </View>
 
+        {/* HQ QUICK ACCESS — PLATFORM ADMIN ONLY */}
+        {activeRole === 'platform_admin' ? (
+          <View className="flex-row flex-wrap gap-3 mb-6">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open People and Roles"
+              onPress={() => router.push('/people')}
+              style={({ pressed }) => ({ opacity: pressed ? 0.76 : 1 })}
+              className="flex-1 min-w-[260px] min-h-[72px] rounded-2xl bg-primary px-5 py-4 flex-row items-center justify-between gap-3"
+            >
+              <View className="flex-row items-center gap-3 flex-1">
+                <Users size={25} color={THEME.accentFg} />
+                <View className="flex-1">
+                  <Text className="text-headline font-bold text-primary-foreground">
+                    People & Roles
+                  </Text>
+                  <Text className="text-footnote text-primary-foreground">
+                    Staff, memberships and access
+                  </Text>
+                </View>
+              </View>
+              <ArrowRight size={20} color={THEME.accentFg} />
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open Platform Administration"
+              onPress={() => router.push('/admin')}
+              style={({ pressed }) => ({ opacity: pressed ? 0.76 : 1 })}
+              className="flex-1 min-w-[260px] min-h-[72px] rounded-2xl border border-primary bg-card px-5 py-4 flex-row items-center justify-between gap-3"
+            >
+              <View className="flex-row items-center gap-3 flex-1">
+                <ShieldCheck size={25} color={THEME.accent} />
+                <View className="flex-1">
+                  <Text className="text-headline font-bold text-card-foreground">
+                    Platform Administration
+                  </Text>
+                  <Text className="text-footnote text-muted-foreground">
+                    Global HQ administration
+                  </Text>
+                </View>
+              </View>
+              <ArrowRight size={20} color={THEME.accent} />
+            </Pressable>
+          </View>
+        ) : null}
+
         <View className="rounded-3xl border border-border bg-card p-5 mb-6">
           <View className="flex-row items-start justify-between gap-4">
             <View className="flex-1">
