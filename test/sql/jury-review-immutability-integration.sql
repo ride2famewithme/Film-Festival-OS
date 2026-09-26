@@ -17,8 +17,10 @@ create table public.jury_reviews (
   submission_id uuid not null,
   juror_user_id uuid not null,
   score numeric,
+  recommendation text,
   notes text,
-  status text not null
+  status text not null,
+  submitted_at timestamptz
 );
 alter table public.jury_reviews enable row level security;
 create policy jury_reviews_juror_all on public.jury_reviews
@@ -33,9 +35,21 @@ insert into public.jury_reviews values
  '33333333-3333-4333-8333-333333333333',
  '44444444-4444-4444-8444-444444444444',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
- 50,'draft notes','draft');
+ 50,null,'draft notes','draft',null);
 
 \ir ../../supabase/migrations/20260926090000_096_submitted_jury_review_immutability.sql
+
+-- The production RPC is SECURITY DEFINER. This minimal trusted fixture tests
+-- the privilege boundary, not its full scoring algorithm.
+create function public.ci_submit_review(p_id uuid)
+returns void language plpgsql security definer set search_path = public as $
+begin
+  update public.jury_reviews
+  set status = 'submitted', submitted_at = now()
+  where id = p_id;
+end;
+$;
+grant execute on function public.ci_submit_review(uuid) to authenticated;
 
 set role authenticated;
 select set_config('request.jwt.claim.sub',
@@ -55,14 +69,32 @@ begin
     where status = 'draft';
     raise exception 'FAIL: draft identity mutation was allowed';
   exception when sqlstate '42501' then
-    if sqlerrm <> 'Jury review identity cannot be changed.' then
-      raise exception 'FAIL: unexpected draft denial: %',sqlerrm;
+    null; -- Column privilege or trigger rejects identity mutation.
+  end;
+  begin
+    update public.jury_reviews set status = 'submitted'
+    where status = 'draft';
+    raise exception 'FAIL: direct status update was allowed';
+  exception when sqlstate '42501' then
+    null; -- Only the trusted RPC may change status.
+  end;
+  begin
+    insert into public.jury_reviews values
+    ('55555555-5555-4555-8555-555555555555',
+     '22222222-2222-4222-8222-222222222222',
+     '33333333-3333-4333-8333-333333333333',
+     '44444444-4444-4444-8444-444444444444',
+     'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+     99,null,'bypass','submitted',now());
+    raise exception 'FAIL: direct submitted insert was allowed';
+  exception when sqlstate '42501' then
+    if sqlerrm <> 'Jury reviews must be created as drafts.' then
+      raise exception 'FAIL: unexpected insert denial: %',sqlerrm;
     end if;
   end;
 end;
 $draft$;
-update public.jury_reviews set status = 'submitted'
-where id = '11111111-1111-4111-8111-111111111111';
+select public.ci_submit_review('11111111-1111-4111-8111-111111111111');
 
 -- Submitted score, notes, status and deletion must be immutable.
 do $submitted$
@@ -107,11 +139,12 @@ begin
   end;
   select count(*) into v_count from public.jury_reviews
   where id = '11111111-1111-4111-8111-111111111111'
-    and score = 70 and notes = 'draft notes' and status = 'submitted';
+    and score = 70 and notes = 'draft notes' and status = 'submitted'
+    and submitted_at is not null;
   if v_count <> 1 then
     raise exception 'FAIL: submitted review changed';
   end if;
 end;
 $submitted$;
 
-\echo 'PASS: submitted review immutability and draft edit path'
+\echo 'PASS: RPC-only submission, submitted immutability and draft edit path'
