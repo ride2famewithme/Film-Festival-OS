@@ -42,13 +42,13 @@ insert into public.jury_reviews values
 -- The production RPC is SECURITY DEFINER. This minimal trusted fixture tests
 -- the privilege boundary, not its full scoring algorithm.
 create function public.ci_submit_review(p_id uuid)
-returns void language plpgsql security definer set search_path = public as $
+returns void language plpgsql security definer set search_path = public as $ci_rpc$
 begin
   update public.jury_reviews
   set status = 'submitted', submitted_at = now()
   where id = p_id;
 end;
-$;
+$ci_rpc$;
 grant execute on function public.ci_submit_review(uuid) to authenticated;
 
 set role authenticated;
