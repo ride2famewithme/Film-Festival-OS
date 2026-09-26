@@ -2,6 +2,7 @@
 \echo 'FFOS 096: isolated PostgreSQL review fixture'
 create role authenticated nologin;
 create schema auth;
+grant usage on schema auth to authenticated;
 create function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
