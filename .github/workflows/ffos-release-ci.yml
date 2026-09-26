@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+      - ci/ffos-release-candidate-22sep2026
 
 permissions:
   contents: read
@@ -33,8 +34,10 @@ jobs:
           test -d app && test -d data && test -d supabase/migrations
           test -f supabase/migrations/20260926044000_095_jury_assignment_juror_write_guard.sql
           test -f test/sql/jury-assignment-guard-integration.sql
+          test -f supabase/migrations/20260926090000_096_submitted_jury_review_immutability.sql
+          test -f test/sql/jury-review-immutability-integration.sql
           if [ "$EVENT_KIND" = pull_request ]; then
-            test "$GITHUB_BASE_REF" = main
+            [[ "$GITHUB_BASE_REF" = main || "$GITHUB_BASE_REF" = ci/ffos-release-candidate-22sep2026 ]]
             base="$PR_BASE_SHA"
           elif [ "$EVENT_KIND" = push ]; then
             test "$GITHUB_REF" = refs/heads/ci/ffos-release-candidate-22sep2026
@@ -128,6 +131,8 @@ jobs:
             sudo apt-get install -y -qq postgresql-client
           fi
           psql -X -v ON_ERROR_STOP=1 -f test/sql/jury-assignment-guard-integration.sql
+          psql -X -v ON_ERROR_STOP=1 -d postgres -c 'create database ffos_review_test'
+          psql -X -v ON_ERROR_STOP=1 -d ffos_review_test -f test/sql/jury-review-immutability-integration.sql
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
