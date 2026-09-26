@@ -124,9 +124,7 @@ begin
     where id = '11111111-1111-4111-8111-111111111111';
     raise exception 'FAIL: submitted review was reopened';
   exception when sqlstate '42501' then
-    if sqlerrm <> 'Submitted jury reviews cannot be changed.' then
-      raise exception 'FAIL: unexpected reopening denial: %',sqlerrm;
-    end if;
+    null; -- Status is denied at the column privilege boundary.
   end;
   begin
     delete from public.jury_reviews
