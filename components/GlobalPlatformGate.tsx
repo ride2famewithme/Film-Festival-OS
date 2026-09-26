@@ -92,6 +92,31 @@ export function GlobalPlatformGate({
     pathname.startsWith('/global-hq/master-control') ||
     pathname === '/security-centre';
 
+  const publicRoute =
+    loginRoute ||
+    pathname === '/festival-directory' ||
+    pathname.startsWith('/award/');
+
+  const platformAdminRoute =
+    pathname === '/global-hq' ||
+    pathname.startsWith('/global-hq/') ||
+    pathname === '/admin' ||
+    pathname.startsWith('/admin-') ||
+    pathname === '/hq-oversight';
+
+  useEffect(() => {
+    if (loading || publicRoute) return;
+
+    if (!role) {
+      router.replace('/login');
+    } else if (
+      platformAdminRoute &&
+      role !== 'platform_admin'
+    ) {
+      router.replace('/dashboard');
+    }
+  }, [loading, publicRoute, platformAdminRoute, role]);
+
   if (loginRoute) return <>{children}</>;
 
   if (loading) {
@@ -114,6 +139,38 @@ export function GlobalPlatformGate({
           }}
         >
           Verifying GLOBAL PLATFORM STATE™…
+        </Text>
+      </View>
+    );
+  }
+
+  if (
+    !publicRoute &&
+    (!role ||
+      (platformAdminRoute && role !== 'platform_admin'))
+  ) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#050807',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+        }}
+      >
+        <LockKeyhole size={36} color="#27f59a" />
+        <Text
+          style={{
+            color: '#ffffff',
+            marginTop: 16,
+            textAlign: 'center',
+            fontWeight: '800',
+          }}
+        >
+          {!role
+            ? 'Sign-in required'
+            : 'Platform Admin workspace required'}
         </Text>
       </View>
     );

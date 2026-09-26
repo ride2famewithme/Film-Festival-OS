@@ -55,6 +55,42 @@ export default function GlobalHqScreen() {
   const [workspaceOptions, setWorkspaceOptions] = useState<WorkspaceOption[]>([]);
   const [switchingTenantId, setSwitchingTenantId] = useState<string | null>(null);
   const masterPulse = useRef(new Animated.Value(0.35)).current;
+  const [hqAccess, setHqAccess] =
+    useState<'checking' | 'allowed' | 'denied'>('checking');
+
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      try {
+        const context = await getActiveContext();
+        if (!active) return;
+
+        if (!context) {
+          setHqAccess('denied');
+          router.replace('/login');
+          return;
+        }
+
+        if (context.role !== 'platform_admin') {
+          setHqAccess('denied');
+          router.replace('/dashboard');
+          return;
+        }
+
+        setHqAccess('allowed');
+      } catch {
+        if (active) {
+          setHqAccess('denied');
+          router.replace('/login');
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -128,6 +164,8 @@ export default function GlobalHqScreen() {
   }, []);
 
   useEffect(() => {
+    if (hqAccess !== 'allowed') return;
+
     void load();
 
     const retry = setTimeout(() => {
@@ -135,7 +173,7 @@ export default function GlobalHqScreen() {
     }, 750);
 
     return () => clearTimeout(retry);
-  }, [load]);
+  }, [hqAccess, load]);
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -204,6 +242,18 @@ export default function GlobalHqScreen() {
     { title: 'AI Next Actions', subtitle: 'Priorities, blockers, management briefs and follow-up', icon: BrainCircuit, route: '/pm-ai-actions' },
     { title: 'System Health', subtitle: 'Operational readiness, integrations and diagnostics', icon: ServerCog, route: '/admin-health' },
   ];
+
+  if (hqAccess !== 'allowed') {
+    return (
+      <View className="flex-1 bg-background items-center justify-center px-6">
+        <Text className="text-body text-muted-foreground">
+          {hqAccess === 'checking'
+            ? 'Verifying Global HQ access…'
+            : 'Global HQ requires an authorised Platform Admin workspace.'}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-background">

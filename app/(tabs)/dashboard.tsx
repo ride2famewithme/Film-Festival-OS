@@ -193,6 +193,10 @@ export default function DashboardScreen() {
       (option) => option.role === 'platform_admin'
     ) ?? null;
 
+  const isGlobalHqActive = Boolean(
+    hqWorkspace && hqWorkspace.tenantId === activeTenantId
+  );
+
   return (
     <View className="flex-1 bg-background">
       <ScrollView
@@ -202,7 +206,7 @@ export default function DashboardScreen() {
         <View className="flex-row items-center justify-between mb-7">
           <View>
             <Text className="text-footnote font-semibold uppercase tracking-widest text-primary">
-            {liveData.festivalName ?? activeTenantName ?? 'Festival Workspace'}
+            {isGlobalHqActive ? (activeTenantName ?? 'Film Festival OS™ Global HQ') : (liveData.festivalName ?? activeTenantName ?? 'Festival Workspace')}
           </Text>
             <Text className="text-title1 font-bold text-foreground mt-1">{`${
   new Date().getHours() < 12
@@ -212,7 +216,7 @@ export default function DashboardScreen() {
       : 'Good evening'
 }, Alex`}</Text>
             <Text className="text-subhead text-muted-foreground mt-1">
-            {liveData.country ? liveData.country + ' · Active Film Festival OS™ workspace' : 'Active Film Festival OS™ workspace'}
+            {isGlobalHqActive ? 'Platform Administration · Global HQ workspace' : (liveData.country ? liveData.country + ' · Active Film Festival OS™ workspace' : 'Active Film Festival OS™ workspace')}
           </Text>
           </View>
           <Pressable
@@ -316,6 +320,24 @@ export default function DashboardScreen() {
           ) : null}
         </View>
 
+        {/* HQ DASHBOARD PRESENTATION — FESTIVAL RECORDS STAY UNCHANGED */}
+        {isGlobalHqActive ? (
+          <View className="rounded-3xl border border-primary bg-card p-5 mb-6">
+            <Text className="text-caption font-bold uppercase tracking-widest text-primary">
+              Global HQ workspace active
+            </Text>
+            <Text className="text-title2 font-bold text-foreground mt-2">
+              Film Festival OS™ Global HQ
+            </Text>
+            <Text className="text-body text-muted-foreground mt-2">
+              You are operating as Platform Admin. Open Global HQ above
+              for platform management, People & Roles and network controls.
+              Select your Festival Owner workspace to view Colortape
+              festival seasons, submissions and live operations.
+            </Text>
+          </View>
+        ) : (
+          <>
         {/* LIVE FESTIVAL DATA V1 */}
         <View className="rounded-3xl border border-border bg-card p-5 mb-6">
           <Text className="text-caption font-bold uppercase tracking-widest text-primary">
@@ -423,6 +445,8 @@ export default function DashboardScreen() {
             from the currently active Film Festival OS™ tenant.
           </Text>
         </View>
+          </>
+        )}
 
       </ScrollView>
     </View>
