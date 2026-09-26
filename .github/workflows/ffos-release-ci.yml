@@ -51,6 +51,9 @@ jobs:
             exit 1
           fi
 
+      - name: Jury assignment migration static regression checks
+        run: node --test test/jury-assignment-guard.test.mjs
+
       - name: TypeScript release check
         shell: bash
         run: |
