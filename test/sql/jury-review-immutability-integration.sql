@@ -1,6 +1,10 @@
 \set ON_ERROR_STOP on
 \echo 'FFOS 096: isolated PostgreSQL review fixture'
-create role authenticated nologin;
+do $role$ begin
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+    create role authenticated nologin;
+  end if;
+end $role$;
 create schema auth;
 grant usage on schema auth to authenticated;
 create function auth.uid() returns uuid language sql stable as $$
