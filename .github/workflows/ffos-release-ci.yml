@@ -11,11 +11,79 @@ on:
 permissions:
   contents: read
 
+# Deterministic Supervisor–Worker CI. No live deployments or AI code authoring.
 jobs:
-  release-gate:
+  architecture:
+    name: Architecture and scope worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate project scope and No Collateral Damage boundary
+        env:
+          EVENT_KIND: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "ride2famewithme/Film-Festival-OS"
+          test -d app && test -d data && test -d supabase/migrations
+          test -f supabase/migrations/20260926044000_095_jury_assignment_juror_write_guard.sql
+          test -f test/sql/jury-assignment-guard-integration.sql
+          if [ "$EVENT_KIND" = pull_request ]; then
+            test "$GITHUB_BASE_REF" = main
+            base="$PR_BASE_SHA"
+          elif [ "$EVENT_KIND" = push ]; then
+            test "$GITHUB_REF" = refs/heads/ci/ffos-release-candidate-22sep2026
+            base="$BEFORE_SHA"
+          else
+            echo "STOP: Unknown event"; exit 1
+          fi
+          if [ -z "$base" ] || [[ "$base" =~ ^0+$ ]]; then base="HEAD^"; fi
+          git rev-parse --verify "${base}^{commit}" >/dev/null
+          git diff --check "${base}...HEAD"
+          dupes="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -print | sed 's#.*/##' | sed -nE 's/^([0-9]{14})_.*/\1/p' | sort | uniq -d)"
+          if [ -n "$dupes" ]; then echo "STOP: Duplicate migration versions: $dupes"; exit 1; fi
+          echo "PASS: FFOS repository/branch, diff, migration uniqueness"
+          echo "PASS: No live migration, deployment or mutation in this worker"
+
+  implementation:
+    name: Implementation and build worker
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --legacy-peer-deps
+      - name: TypeScript release check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f tsconfig.release.json ]; then
+            npx tsc --noEmit -p tsconfig.release.json
+          else
+            npx tsc --noEmit -p tsconfig.app-check.json
+          fi
+      - name: Web bundle (build only; never deploy)
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          EXPO_PUBLIC_ADAPTER: supabase
+        run: npx expo export --platform web --output-dir dist_ci
+      - name: Verify web entry point
+        run: test -f dist_ci/index.html
 
+  qa_security:
+    name: QA and security worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16
@@ -29,46 +97,23 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Use Node.js 22
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-
-      - name: Install dependencies
+      - name: Install locked dependencies
         run: npm ci --legacy-peer-deps
-
       - name: Reject tracked secrets and local artifacts
         shell: bash
         run: |
           set -euo pipefail
           bad="$(git ls-files | grep -E '(^|/)\.env($|[._-])|(^|/)_ \.env$|\.DS_Store$|Screen Shot|\.BAK|_PRE_|\.BACKUP_|dist_ffos_' || true)"
-          if [ -n "$bad" ]; then
-            echo "Tracked local/secret/backup artifacts are not allowed:"
-            echo "$bad"
-            exit 1
-          fi
-
-      - name: Check migration version uniqueness
-        shell: bash
-        run: |
-          set -euo pipefail
-          dupes="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -print 2>/dev/null             | sed 's#.*/##'             | sed -nE 's/^([0-9]{14})_.*/\1/p'             | sort             | uniq -d)"
-          if [ -n "$dupes" ]; then
-            echo "Duplicate executable migration versions:"
-            echo "$dupes"
-            exit 1
-          fi
-
-      - name: Jury assignment migration static regression checks
+          if [ -n "$bad" ]; then echo "STOP: Tracked local/secret files:"; echo "$bad"; exit 1; fi
+      - name: Static jury security tests
         run: node --test test/jury-assignment-guard.test.mjs
-
-      - name: Isolated PostgreSQL jury assignment security tests
+      - name: Isolated PostgreSQL jury integrity tests
         env:
           PGPASSWORD: ffos_ci_only
           PGHOST: 127.0.0.1
@@ -83,49 +128,101 @@ jobs:
             sudo apt-get install -y -qq postgresql-client
           fi
           psql -X -v ON_ERROR_STOP=1 -f test/sql/jury-assignment-guard-integration.sql
-
-      - name: TypeScript release check
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -f tsconfig.release.json ]; then
-            npx tsc --noEmit -p tsconfig.release.json
-          else
-            npx tsc --noEmit -p tsconfig.app-check.json
-          fi
-
-      - name: Set up Deno
-        uses: denoland/setup-deno@v2
+      - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-
-      - name: Check Supabase Edge Functions
+      - name: Check all Supabase Edge Functions
         shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
           files=(supabase/functions/*/index.ts)
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "STOP: No Edge Functions found"
-            exit 1
-          fi
+          if [ "${#files[@]}" -eq 0 ]; then echo "STOP: No Edge Functions"; exit 1; fi
           for file in "${files[@]}"; do
             deno check --no-lock --node-modules-dir=none "$file"
             echo "PASS: $file"
           done
 
-      - name: Web production bundle
-        env:
-          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
-          EXPO_PUBLIC_ADAPTER: supabase
-        run: npx expo export --platform web --output-dir dist_ci
-
-      - name: Release gate summary
+  documentation:
+    name: Documentation and handoff worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Supervisor contract and checkpoint
+        shell: bash
         run: |
-          echo "FFOS Release CI passed."
-          echo "TypeScript: PASS"
-          echo "Supabase Edge Functions: PASS"
-          echo "Web bundle: PASS"
-          echo "Secret/artifact scan: PASS"
-          echo "Migration filename sanity: PASS"
+          set -euo pipefail
+          file=docs/FFOS_SUPERVISOR_AUTOMATION_v1.md
+          test -s "$file"
+          for heading in "Scope and priority" "Worker contract" "No Collateral Damage" "Human approval gate" "Recovery" "Not yet automated"; do
+            grep -Fq "$heading" "$file" || { echo "STOP: Missing handoff: $heading"; exit 1; }
+          done
+          grep -Fq 44fbec6 "$file"
+          test -f docs/Book-06-Testing/README.md
+          test -f test/README.md
+          test -f supabase/migrations/20260926044000_095_jury_assignment_juror_write_guard.sql
+          echo "PASS: Handoff, hold and recovery information verified"
+
+  release-gate:
+    name: Supervisor release gate
+    needs: [architecture, implementation, qa_security, documentation]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Consolidate four worker results; HOLD on any failure
+        env:
+          ARCH_RESULT: ${{ needs.architecture.result }}
+          IMPL_RESULT: ${{ needs.implementation.result }}
+          QA_RESULT: ${{ needs.qa_security.result }}
+          DOC_RESULT: ${{ needs.documentation.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const workers = {
+            architecture: process.env.ARCH_RESULT,
+            implementation: process.env.IMPL_RESULT,
+            qa_security: process.env.QA_RESULT,
+            documentation: process.env.DOC_RESULT,
+          };
+          const ok = Object.values(workers).every(value => value === 'success');
+          const decision = ok ? 'PASS' : 'HOLD';
+          const report = {
+            project: 'Film Festival OS™',
+            commit: process.env.GITHUB_SHA,
+            decision,
+            workerResults: workers,
+            noCollateralDamage: 'No production writes or deployments in CI',
+            humanApprovalRequired: true,
+            liveDatabaseVerified: false,
+          };
+          fs.writeFileSync('supervisor-checkpoint.json', JSON.stringify(report, null, 2) + '\n');
+          const md = [
+            '# Film Festival OS™ Supervisor Checkpoint',
+            '',
+            '**Decision:** ' + decision,
+            '**Commit:** ' + process.env.GITHUB_SHA,
+            '',
+            '| Worker | Result |',
+            '| --- | --- |',
+            ...Object.entries(workers).map(([name, result]) => '| ' + name + ' | ' + result + ' |'),
+            '',
+            'No Collateral Damage™: no live deployment, schema mutation, payment or membership operation.',
+            'PASS is not a production-deployment approval. Live RLS and review immutability still need their separate gates.',
+            ''
+          ].join('\n');
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+          console.log(md);
+          if (!ok) process.exitCode = 1;
+          NODE
+      - name: Save consolidated checkpoint (including HOLD)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffos-supervisor-checkpoint
+          path: supervisor-checkpoint.json
+          if-no-files-found: warn
+          retention-days: 30
