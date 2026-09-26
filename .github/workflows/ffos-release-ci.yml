@@ -16,6 +16,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ffos_ci_only
+          POSTGRES_DB: ffos_guard_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ffos_guard_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,6 +67,22 @@ jobs:
 
       - name: Jury assignment migration static regression checks
         run: node --test test/jury-assignment-guard.test.mjs
+
+      - name: Isolated PostgreSQL jury assignment security tests
+        env:
+          PGPASSWORD: ffos_ci_only
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGDATABASE: ffos_guard_test
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client
+          fi
+          psql -X -v ON_ERROR_STOP=1 -f test/sql/jury-assignment-guard-integration.sql
 
       - name: TypeScript release check
         shell: bash
