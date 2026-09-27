@@ -120,7 +120,26 @@ insert into public.jury_review_criterion_scores values
  '22222222-2222-4222-8222-222222222222',
  '11111111-1111-4111-8111-111111111111',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
- 75,'criterion comment');
+ 75,'   ');
+set role authenticated;
+do $criterion_comment$ begin
+  begin
+    perform public.submit_criterion_jury_review(
+      '44444444-4444-4444-8444-444444444444',
+      'accept','overall');
+    raise exception 'FAIL: blank required criterion comment was accepted';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'Cannot submit review: required criterion comments are missing.' then
+      raise;
+    end if;
+  end;
+end $criterion_comment$;
+
+reset role;
+update public.jury_review_criterion_scores
+set criterion_comment = 'criterion comment'
+where review_id = '44444444-4444-4444-8444-444444444444'
+  and criterion_id = '66666666-6666-4666-8666-666666666666';
 set role authenticated;
 do $required$ begin
   begin
@@ -176,4 +195,4 @@ begin
   end;
 end $verify$;
 reset role;
-\echo 'PASS: real criterion submission RPC, authorization, completeness and immutable result'
+\echo 'PASS: real criterion submission RPC, authorization, required criterion comment, completeness and immutable result'
