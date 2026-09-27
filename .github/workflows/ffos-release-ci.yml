@@ -16,7 +16,7 @@ permissions:
 jobs:
   architecture:
     name: Architecture and scope worker
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v5
@@ -74,7 +74,7 @@ jobs:
 
   implementation:
     name: Implementation and build worker
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
@@ -104,7 +104,7 @@ jobs:
 
   qa_security:
     name: QA and security worker
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:
@@ -171,7 +171,7 @@ jobs:
 
   documentation:
     name: Documentation and handoff worker
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v5
@@ -194,7 +194,7 @@ jobs:
     name: Supervisor release gate
     needs: [architecture, implementation, qa_security, documentation]
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
       - name: Consolidate four worker results; HOLD on any failure
@@ -246,7 +246,7 @@ jobs:
           NODE
       - name: Save consolidated checkpoint (including HOLD)
         if: ${{ always() }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ffos-supervisor-checkpoint
           path: supervisor-checkpoint.json
