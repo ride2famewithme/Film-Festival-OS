@@ -180,43 +180,6 @@ export async function listMyJuryAssignments() {
   if(r.error) throw new Error(r.error.message);
   return r.data??[];
 }
-export async function submitJuryReview(assignmentId:string,submissionId:string,score:number,recommendation:string,notes:string) {
-  const ctx=await ctxFor('jury.review');
-  const season=await getActiveSeason();
-  if(!season) throw new Error('Select a festival season first.');
-  const seasonId=String(season.id);
-
-  const r=await db.from<any>('jury_reviews').insert({
-    tenant_id:ctx.tenantId,
-    season_id:seasonId,
-    assignment_id:assignmentId,
-    submission_id:submissionId,
-    juror_user_id:ctx.userId,
-    score,
-    recommendation,
-    notes,
-    status:'submitted',
-    submitted_at:new Date().toISOString()
-  });
-
-  if(r.error) throw new Error(r.error.message);
-
-  await db.from<any>('jury_assignments')
-    .update({status:'completed'})
-    .eq('id',assignmentId)
-    .eq('tenant_id',ctx.tenantId)
-    .eq('season_id',seasonId)
-    .eq('juror_user_id',ctx.userId);
-
-  const row=(r.data??[])[0];
-  await writeAuditEvent(
-    'jury.review_submitted',
-    'jury_review',
-    row?.id,
-    {submissionId,score,recommendation,seasonId}
-  );
-  return row;
-}
 export async function queueSubmissionNotification(submissionId:string,recipientEmail:string,templateKey:string,subject:string,body:string) {
   const ctx=await ctxFor('submission.manage');
   const r=await db.from<any>('notifications').insert({tenant_id:ctx.tenantId,submission_id:submissionId,recipient_email:recipientEmail,template_key:templateKey,subject,body,status:'queued',queued_at:new Date().toISOString()});
