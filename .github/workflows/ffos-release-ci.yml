@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Validate project scope and No Collateral Damage boundary
@@ -49,6 +49,24 @@ jobs:
           if [ -z "$base" ] || [[ "$base" =~ ^0+$ ]]; then base="HEAD^"; fi
           git rev-parse --verify "${base}^{commit}" >/dev/null
           git diff --check "${base}...HEAD"
+          # Pilot branches are restricted even when the general release CI accepts broader changes.
+          if [ "$EVENT_KIND" = pull_request ] && [[ "$GITHUB_HEAD_REF" = pilot/ai-worker-* ]]; then
+            test "$GITHUB_BASE_REF" = ci/ffos-release-candidate-22sep2026
+            changed=0
+            while IFS= read -r -d '' path; do
+              changed=$((changed + 1))
+              case "$path" in
+                docs/*|test/*) ;;
+                *) echo "STOP: AI pilot changed out-of-scope path: $path"; exit 1 ;;
+              esac
+              mode="$(git ls-tree HEAD -- "$path" | awk '{print $1}')"
+              if [ "$mode" = 120000 ] || [ "$mode" = 160000 ]; then
+                echo "STOP: AI pilot contains symlink or submodule: $path"; exit 1
+              fi
+            done < <(git diff --name-only -z "${base}...HEAD")
+            test "$changed" -gt 0 || { echo "STOP: Empty AI pilot change"; exit 1; }
+            echo "PASS: AI pilot restricted to docs/ and test/ ($changed changed paths)"
+          fi
           dupes="$(find supabase/migrations -maxdepth 1 -type f -name '*.sql' -print | sed 's#.*/##' | sed -nE 's/^([0-9]{14})_.*/\1/p' | sort | uniq -d)"
           if [ -n "$dupes" ]; then echo "STOP: Duplicate migration versions: $dupes"; exit 1; fi
           echo "PASS: FFOS repository/branch, diff, migration uniqueness"
@@ -59,8 +77,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
@@ -102,8 +120,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
@@ -156,7 +174,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Verify Supervisor contract and checkpoint
         shell: bash
         run: |
@@ -228,7 +246,7 @@ jobs:
           NODE
       - name: Save consolidated checkpoint (including HOLD)
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ffos-supervisor-checkpoint
           path: supervisor-checkpoint.json
