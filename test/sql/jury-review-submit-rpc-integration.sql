@@ -53,6 +53,7 @@ for all to authenticated
 using (juror_user_id = auth.uid())
 with check (juror_user_id = auth.uid());
 grant select, insert, update, delete on public.jury_reviews to authenticated;
+grant select on public.jury_assignments to authenticated;
 
 insert into public.jury_scoring_forms values
 ('22222222-2222-4222-8222-222222222222','active',true,true);
