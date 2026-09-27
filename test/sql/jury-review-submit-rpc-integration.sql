@@ -154,6 +154,33 @@ do $required$ begin
   end;
 end $required$;
 
+do $overall_comment$ begin
+  begin
+    perform public.submit_criterion_jury_review(
+      '44444444-4444-4444-8444-444444444444',
+      'accept','   ');
+    raise exception 'FAIL: blank required overall comment was accepted';
+  exception when sqlstate 'P0001' then
+    if sqlerrm <> 'Cannot submit review: overall comment is required.' then
+      raise;
+    end if;
+  end;
+  if not exists (
+    select 1 from public.jury_reviews
+    where id = '44444444-4444-4444-8444-444444444444'
+      and status = 'draft' and submitted_at is null
+  ) then
+    raise exception 'FAIL: rejected overall comment changed the draft review';
+  end if;
+  if not exists (
+    select 1 from public.jury_assignments
+    where id = '33333333-3333-4333-8333-333333333333'
+      and status = 'assigned'
+  ) then
+    raise exception 'FAIL: rejected overall comment completed the assignment';
+  end if;
+end $overall_comment$;
+
 select public.submit_criterion_jury_review(
  '44444444-4444-4444-8444-444444444444',
  'accept','overall');
