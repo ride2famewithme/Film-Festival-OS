@@ -44,6 +44,7 @@ create table public.jury_scoring_forms (
 );
 create table public.jury_assignments (
   id uuid primary key, tenant_id uuid not null,
+  submission_id uuid not null,
   juror_user_id uuid not null, scoring_form_id uuid not null,
   status text not null, conflict_status text not null
 );
@@ -115,12 +116,14 @@ insert into public.jury_scoring_forms values
 insert into public.jury_assignments values
 ('33333333-3333-4333-8333-333333333333',
  '11111111-1111-4111-8111-111111111111',
+ '55555555-5555-4555-8555-555555555555',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
  '22222222-2222-4222-8222-222222222222',
  'assigned','clear');
 insert into public.jury_assignments values
 ('88888888-8888-4888-8888-888888888888',
  '11111111-1111-4111-8111-111111111111',
+ '55555555-5555-4555-8555-555555555555',
  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
  '22222222-2222-4222-8222-222222222222',
  'assigned','clear');
