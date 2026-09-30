@@ -49,6 +49,18 @@ where n.nspname = 'public'
   and c.relname in ('jury_assignments', 'jury_reviews')
 order by c.relname;
 
+-- C2. Column shape required by the 095/096 preflight and application path
+select
+  table_name,
+  ordinal_position,
+  column_name,
+  data_type,
+  is_nullable
+from information_schema.columns
+where table_schema = 'public'
+  and table_name in ('jury_assignments', 'jury_reviews')
+order by table_name, ordinal_position;
+
 -- D. Live RLS policies (names/roles/commands only; expressions intentionally omitted)
 select
   tablename,
@@ -87,8 +99,8 @@ select
     as authenticated_can_execute,
   pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE')
     as anon_can_execute,
-  pg_catalog.has_function_privilege('public', p.oid, 'EXECUTE')
-    as public_can_execute
+  pg_catalog.has_function_privilege('service_role', p.oid, 'EXECUTE')
+    as service_role_can_execute
 from pg_catalog.pg_proc p
 join pg_catalog.pg_namespace n
   on n.oid = p.pronamespace
