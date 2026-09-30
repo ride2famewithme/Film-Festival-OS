@@ -110,4 +110,3 @@ from (
     'completed_without_submitted_review='||a.completed_without_submitted_review::text from assignment_anomalies a
 ) checks
 order by seq;
-
