@@ -68,4 +68,3 @@ from (
     'submitted_without_timestamp='||a.submitted_without_timestamp::text||', draft_with_timestamp='||a.draft_with_timestamp::text from anomalies a
 ) checks
 order by seq;
-
