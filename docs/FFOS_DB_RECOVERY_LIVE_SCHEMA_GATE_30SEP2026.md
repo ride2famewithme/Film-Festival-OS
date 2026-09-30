@@ -48,7 +48,7 @@ After R1 and S1 are accepted:
 
 - restore/clone the production database to an isolated target, or reproduce the full production migration order in a staging database
 - apply 095 then 096 there only
-- run the existing jury assignment guard, submitted-review immutability and submit-RPC integration suites
+- use a separate existing-schema regression harness for assignment guards, submitted-review immutability and the submit RPC, with dedicated test identities and rollback of test data; existing integration suites CREATE fixture tables/functions/auth stubs and must run only in disposable fixture databases
 - add distinct juror / other-juror / manager / trusted-RPC / cross-tenant negative checks against the restored/full schema
 - test legacy clients for any direct submitted-review insert path that 096 would block
 
