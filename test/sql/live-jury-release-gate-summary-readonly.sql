@@ -1,8 +1,7 @@
 -- Film Festival OS™ — LIVE jury release-gate summary (READ ONLY)
 -- One result table for the operator/Supervisor evidence package.
 -- Run on the target FFOS Supabase project BEFORE migrations 095/096.
-begin;
-set transaction read only;
+-- Single SELECT-only statement: SQL Editor displays the result table directly.
 
 with
 migration_state as (
@@ -111,5 +110,3 @@ from (
     'completed_without_submitted_review='||a.completed_without_submitted_review::text from assignment_anomalies a
 ) checks
 order by seq;
-
-rollback;

@@ -42,7 +42,7 @@ It returns one concise table with PASS/HOLD/REVIEW for:
 7. review status/timestamp anomalies
 8. completed-assignment linkage anomalies
 
-The query runs inside an explicit READ ONLY transaction.
+The query is a single SELECT-only statement. It has no trailing transaction-control statement, so Supabase SQL Editor displays the verdict table directly.
 
 ## Milestone 3 — Full-schema isolated post-check
 
@@ -51,7 +51,7 @@ After a verified backup is restored/cloned to an isolated Supabase project or an
 1. verify the clone/restored database before mutation
 2. apply migration 095 there only
 3. apply migration 096 there only
-4. run the existing negative jury suites against the isolated target
+4. run a separate existing-schema regression harness against the isolated target, using dedicated test identities and rollback of test data; the existing integration suites CREATE fixture tables/functions/auth stubs and must run only in disposable fixture databases
 5. run `test/sql/post-095-096-isolated-gate-summary-readonly.sql`
 
 The post-check requires the migration records, both security triggers, revoked authenticated table-wide UPDATE on `jury_reviews`, exactly the three allowed column UPDATE grants, and no review timestamp/status anomalies.
