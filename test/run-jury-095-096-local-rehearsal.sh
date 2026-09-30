@@ -17,21 +17,82 @@ cd "$ROOT"
 find_pg_bin() {
   command -v initdb >/dev/null 2>&1 && return 0
 
-  local candidate
-  for candidate in     /Applications/Postgres.app/Contents/Versions/latest/bin     /opt/homebrew/opt/postgresql@*/bin     /opt/homebrew/opt/postgresql/bin     /usr/local/opt/postgresql@*/bin     /usr/local/opt/postgresql/bin     /Library/PostgreSQL/*/bin
+  local candidate bindir formula prefix init_path
+
+  if command -v pg_config >/dev/null 2>&1; then
+    bindir="$(pg_config --bindir 2>/dev/null || true)"
+    if [ -n "$bindir" ] && [ -x "$bindir/initdb" ]; then
+      PATH="$bindir:$PATH"
+      export PATH
+      return 0
+    fi
+  fi
+
+  if command -v brew >/dev/null 2>&1; then
+    while IFS= read -r formula; do
+      case "$formula" in
+        postgresql|postgresql@*)
+          prefix="$(brew --prefix "$formula" 2>/dev/null || true)"
+          if [ -n "$prefix" ] && [ -x "$prefix/bin/initdb" ]; then
+            PATH="$prefix/bin:$PATH"
+            export PATH
+            return 0
+          fi
+          ;;
+      esac
+    done < <(brew list --formula 2>/dev/null || true)
+  fi
+
+  for candidate in \
+    /Applications/Postgres.app/Contents/Versions/latest/bin \
+    /Applications/Postgres.app/Contents/Versions/*/bin \
+    /Library/PostgreSQL/*/bin \
+    /opt/homebrew/opt/postgresql@*/bin \
+    /opt/homebrew/opt/postgresql/bin \
+    /opt/homebrew/Cellar/postgresql@*/*/bin \
+    /opt/homebrew/Cellar/postgresql/*/bin \
+    /usr/local/opt/postgresql@*/bin \
+    /usr/local/opt/postgresql/bin \
+    /usr/local/Cellar/postgresql@*/*/bin \
+    /usr/local/Cellar/postgresql/*/bin \
+    /usr/local/pgsql/bin \
+    /opt/local/lib/postgresql*/bin \
+    /opt/local/bin
   do
-    if [ -x "$candidate/initdb" ]; then
+    if [ -x "$candidate/initdb" ] &&
+       [ -x "$candidate/pg_ctl" ] &&
+       [ -x "$candidate/psql" ] &&
+       [ -x "$candidate/createdb" ]; then
       PATH="$candidate:$PATH"
       export PATH
       return 0
     fi
   done
+
+  if command -v mdfind >/dev/null 2>&1; then
+    while IFS= read -r init_path; do
+      [ -n "$init_path" ] || continue
+      bindir="$(dirname "$init_path")"
+      if [ -x "$bindir/initdb" ] &&
+         [ -x "$bindir/pg_ctl" ] &&
+         [ -x "$bindir/psql" ] &&
+         [ -x "$bindir/createdb" ]; then
+        PATH="$bindir:$PATH"
+        export PATH
+        return 0
+      fi
+    done < <(mdfind "kMDItemFSName == 'initdb'" 2>/dev/null | head -n 12)
+  fi
+
   return 1
 }
 
 find_pg_bin || {
-  echo "HOLD: PostgreSQL server tools were not found in PATH or common Mac locations."
+  echo "HOLD: PostgreSQL server tools were not found."
   echo "Need: initdb, pg_ctl, psql and createdb."
+  echo "Diagnostic:"
+  echo "  command -v psql pg_config brew"
+  echo "If PostgreSQL is installed only as a GUI/client, install the server tools first."
   exit 2
 }
 
@@ -41,6 +102,8 @@ for cmd in initdb pg_ctl psql createdb; do
     exit 2
   }
 done
+
+echo "PostgreSQL tools: $(dirname "$(command -v initdb)")"
 
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/ffos-jury-rehearsal.XXXXXX")"
 PGDATA="$TMP_ROOT/data"
@@ -75,7 +138,8 @@ export PGUSER="$(id -un)"
 unset PGDATABASE DATABASE_URL SUPABASE_DB_URL
 
 echo "=== PRIVATE CLUSTER IDENTITY ==="
-psql -X -v ON_ERROR_STOP=1 -d postgres -Atc   "select current_database() || '|' || current_user || '|' || current_setting('server_version');"
+psql -X -v ON_ERROR_STOP=1 -d postgres -Atc \
+  "select current_database() || '|' || current_user || '|' || current_setting('server_version');"
 
 prefix="ffos_jury_rehearsal_$$"
 db_guard="${prefix}_guard"
@@ -87,13 +151,16 @@ createdb "$db_review"
 createdb "$db_rpc"
 
 echo "=== 1/3 ASSIGNMENT WRITE GUARD ==="
-psql -X -v ON_ERROR_STOP=1 -d "$db_guard"   -f test/sql/jury-assignment-guard-integration.sql
+psql -X -v ON_ERROR_STOP=1 -d "$db_guard" \
+  -f test/sql/jury-assignment-guard-integration.sql
 
 echo "=== 2/3 SUBMITTED REVIEW IMMUTABILITY ==="
-psql -X -v ON_ERROR_STOP=1 -d "$db_review"   -f test/sql/jury-review-immutability-integration.sql
+psql -X -v ON_ERROR_STOP=1 -d "$db_review" \
+  -f test/sql/jury-review-immutability-integration.sql
 
 echo "=== 3/3 SUBMIT RPC + 095 + 096 COMBINED ==="
-psql -X -v ON_ERROR_STOP=1 -d "$db_rpc"   -f test/sql/jury-review-submit-rpc-integration.sql
+psql -X -v ON_ERROR_STOP=1 -d "$db_rpc" \
+  -f test/sql/jury-review-submit-rpc-integration.sql
 
 echo "=== FFOS LOCAL 095/096 REHEARSAL PASS ==="
 echo "Temporary PostgreSQL cluster: PASS; cleanup will remove it now."
