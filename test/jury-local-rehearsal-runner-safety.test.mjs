@@ -9,7 +9,7 @@ const script = readFileSync(
 
 test('local rehearsal creates and destroys a private PostgreSQL cluster', () => {
   assert.match(script, /mktemp -d/);
-  assert.match(script, /initdb -D "\$PGDATA"/);
+  assert.match(script, /initdb -D "\$PGDATA" -U postgres/);
   assert.match(script, /pg_ctl -D "\$PGDATA" -w start/);
   assert.match(script, /pg_ctl -D "\$PGDATA" -m fast -w stop/);
   assert.match(script, /rm -rf "\$TMP_ROOT"/);
@@ -19,6 +19,7 @@ test('local rehearsal disables TCP and uses a private Unix socket', () => {
   assert.match(script, /listen_addresses = ''/);
   assert.match(script, /unix_socket_directories = '\$PGSOCK'/);
   assert.match(script, /export PGHOST="\$PGSOCK"/);
+  assert.match(script, /export PGUSER="postgres"/);
 });
 
 test('local rehearsal cannot target linked Supabase or an external database URL', () => {
