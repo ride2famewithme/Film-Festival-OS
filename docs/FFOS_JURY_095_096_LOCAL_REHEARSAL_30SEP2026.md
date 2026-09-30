@@ -12,9 +12,9 @@ Run:
 bash test/run-jury-095-096-local-rehearsal.sh
 ```
 
-The runner refuses non-local PostgreSQL hosts, creates three uniquely named disposable databases, runs the existing assignment-guard, submitted-review immutability and combined submit-RPC/095/096 suites, and drops those databases on exit.
+The runner creates a brand-new temporary PostgreSQL cluster, disables TCP listening, connects only through its private Unix socket, creates three disposable databases inside that cluster, runs the existing assignment-guard, submitted-review immutability and combined submit-RPC/095/096 suites, then stops and deletes the entire temporary cluster.
 
-A PASS here is independent local evidence, but it is still not a restored production-schema rehearsal.
+A PASS here is independent local evidence without touching the user's existing PostgreSQL databases or linked Supabase project, but it is still not a restored production-schema rehearsal.
 
 ## Milestone 2 — Application compatibility beyond 096
 
