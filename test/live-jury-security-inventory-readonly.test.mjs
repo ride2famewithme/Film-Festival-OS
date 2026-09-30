@@ -52,6 +52,7 @@ test('live inventory covers issue-23 release-gate evidence', () => {
     'supabase_migrations.schema_migrations',
     'jury_assignments',
     'jury_reviews',
+    'information_schema.columns',
     'pg_catalog.pg_policies',
     'pg_catalog.pg_trigger',
     'submit_criterion_jury_review',
