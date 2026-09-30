@@ -137,6 +137,8 @@ jobs:
         run: node --test test/jury-assignment-guard.test.mjs
       - name: Static franchise hierarchy contract tests
         run: node --test test/franchise-hierarchy-contract.test.mjs
+      - name: Static live-schema inventory safety test
+        run: node --test test/live-jury-security-inventory-readonly.test.mjs
       - name: Isolated PostgreSQL jury integrity tests
         env:
           PGPASSWORD: ffos_ci_only
