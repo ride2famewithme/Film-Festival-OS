@@ -15,14 +15,16 @@ const stripComments = (text) =>
     .replace(/\/\*[\s\S]*?\*\//g, '');
 
 for (const file of files) {
-  test(file + ' remains explicitly read-only', () => {
+  test(file + ' remains SELECT-only and returns its result table', () => {
     const sql = stripComments(
       readFileSync(new URL(file, import.meta.url), 'utf8')
     );
 
-    assert.match(sql, /\bbegin\s*;/i);
-    assert.match(sql, /\bset\s+transaction\s+read\s+only\s*;/i);
-    assert.match(sql, /\brollback\s*;/i);
+    assert.match(sql.trim(), /^with\b/i);
+    assert.match(sql.trim(), /order\s+by\s+seq\s*;$/i);
+    assert.equal((sql.match(/;/g) || []).length, 1);
+    assert.doesNotMatch(sql, /\b(?:begin|commit|rollback)\s*;/i);
+    assert.doesNotMatch(sql, /\bset\s+transaction\b/i);
 
     for (const forbidden of [
       /^\s*insert\s+into\b/im,
