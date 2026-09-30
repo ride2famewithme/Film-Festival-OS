@@ -135,6 +135,8 @@ jobs:
           if [ -n "$bad" ]; then echo "STOP: Tracked local/secret files:"; echo "$bad"; exit 1; fi
       - name: Static jury security tests
         run: node --test test/jury-assignment-guard.test.mjs
+      - name: Static franchise hierarchy contract tests
+        run: node --test test/franchise-hierarchy-contract.test.mjs
       - name: Isolated PostgreSQL jury integrity tests
         env:
           PGPASSWORD: ffos_ci_only
