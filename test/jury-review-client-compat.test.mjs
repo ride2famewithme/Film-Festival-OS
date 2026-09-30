@@ -41,7 +41,7 @@ test('final jury submission uses the trusted submit RPC', () => {
 });
 
 test('application still scopes review draft access to tenant and juror', () => {
-  const start = source.indexOf("export async function getOrCreateJuryReview");
+  const start = source.indexOf("export async function getOrCreateDraftJuryReview");
   const end = source.indexOf("export async function listCriterionScores", start);
   const block = start >= 0 && end > start ? source.slice(start, end) : source;
 
