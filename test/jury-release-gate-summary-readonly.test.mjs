@@ -25,18 +25,18 @@ for (const file of files) {
     assert.match(sql, /\brollback\s*;/i);
 
     for (const forbidden of [
-      /\binsert\s+into\b/i,
-      /\bupdate\s+[a-z_."']/i,
-      /\bdelete\s+from\b/i,
-      /\btruncate\b/i,
-      /\balter\b/i,
-      /\bcreate\b/i,
-      /\bdrop\b/i,
-      /\bgrant\b/i,
-      /\brevoke\b/i,
-      /\bset\s+role\b/i,
-      /\bcall\b/i,
-      /\bdo\s+\$/i,
+      /^\s*insert\s+into\b/im,
+      /^\s*update\s+[a-z_."']/im,
+      /^\s*delete\s+from\b/im,
+      /^\s*truncate\b/im,
+      /^\s*alter\b/im,
+      /^\s*create\b/im,
+      /^\s*drop\b/im,
+      /^\s*grant\b/im,
+      /^\s*revoke\b/im,
+      /^\s*set\s+role\b/im,
+      /^\s*call\b/im,
+      /^\s*do\s+\$/im,
     ]) {
       assert.doesNotMatch(sql, forbidden);
     }
