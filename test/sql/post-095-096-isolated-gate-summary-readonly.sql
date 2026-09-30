@@ -1,7 +1,6 @@
 -- Film Festival OS™ — POST 095/096 verification summary (READ ONLY)
 -- Run only on an isolated restored/staging database AFTER applying migrations 095 and 096.
-begin;
-set transaction read only;
+-- Single SELECT-only statement: SQL Editor displays the result table directly.
 
 with
 migration_state as (
@@ -70,4 +69,3 @@ from (
 ) checks
 order by seq;
 
-rollback;
