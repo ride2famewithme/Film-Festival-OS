@@ -164,6 +164,10 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -d ffos_review_test -f test/sql/jury-review-immutability-integration.sql
           psql -X -v ON_ERROR_STOP=1 -d postgres -c 'create database ffos_rpc_test'
           psql -X -v ON_ERROR_STOP=1 -d ffos_rpc_test -f test/sql/jury-review-submit-rpc-integration.sql
+          psql -X -v ON_ERROR_STOP=1 -d ffos_rpc_test -c "create schema supabase_migrations; create table supabase_migrations.schema_migrations(version text primary key); insert into supabase_migrations.schema_migrations values ('20260926044000'), ('20260926090000');"
+          psql -X -v ON_ERROR_STOP=1 -At -F '|' -d ffos_rpc_test -f test/sql/post-095-096-isolated-gate-summary-readonly.sql > post-jury-summary-ci.txt
+          cat post-jury-summary-ci.txt
+          awk -F '|' '$3=="PASS" {passed++} $3=="HOLD" {failed++} END {if (passed != 6 || failed) exit 1}' post-jury-summary-ci.txt
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
