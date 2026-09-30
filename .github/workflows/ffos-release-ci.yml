@@ -143,6 +143,8 @@ jobs:
         run: node --test test/jury-review-client-compat.test.mjs
       - name: Local jury rehearsal isolation safety test
         run: node --test test/jury-local-rehearsal-runner-safety.test.mjs
+      - name: Jury pre/post release summary read-only tests
+        run: node --test test/jury-release-gate-summary-readonly.test.mjs
       - name: Isolated PostgreSQL jury integrity tests
         env:
           PGPASSWORD: ffos_ci_only
