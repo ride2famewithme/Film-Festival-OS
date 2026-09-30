@@ -120,7 +120,7 @@ cleanup() {
 trap cleanup EXIT INT TERM HUP
 
 echo "=== INITIALISE PRIVATE POSTGRESQL CLUSTER ==="
-initdb -D "$PGDATA" -A trust --no-locale --encoding=UTF8 >/dev/null
+initdb -D "$PGDATA" -U postgres -A trust --no-locale --encoding=UTF8 >/dev/null
 
 cat >> "$PGDATA/postgresql.conf" <<EOF
 listen_addresses = ''
@@ -134,12 +134,17 @@ pg_ctl -D "$PGDATA" -w start >/dev/null
 
 export PGHOST="$PGSOCK"
 export PGPORT="5432"
-export PGUSER="$(id -un)"
+export PGUSER="postgres"
 unset PGDATABASE DATABASE_URL SUPABASE_DB_URL
 
 echo "=== PRIVATE CLUSTER IDENTITY ==="
 psql -X -v ON_ERROR_STOP=1 -d postgres -Atc \
   "select current_database() || '|' || current_user || '|' || current_setting('server_version');"
+
+test "$(psql -X -v ON_ERROR_STOP=1 -d postgres -Atc 'select current_user')" = "postgres" || {
+  echo "HOLD: temporary cluster superuser is not postgres"
+  exit 2
+}
 
 prefix="ffos_jury_rehearsal_$$"
 db_guard="${prefix}_guard"
