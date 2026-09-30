@@ -27,7 +27,7 @@ review_grants as (
       where table_schema='public' and table_name='jury_reviews'
         and grantee='authenticated' and privilege_type='UPDATE'
     ) as table_update,
-    array_agg(column_name order by column_name) filter (
+    array_agg(column_name::text order by column_name::text) filter (
       where grantee='authenticated' and privilege_type='UPDATE'
     ) as update_columns
   from information_schema.role_column_grants
