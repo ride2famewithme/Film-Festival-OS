@@ -28,6 +28,14 @@ test('local rehearsal cannot target linked Supabase or an external database URL'
   assert.match(script, /unset PGDATABASE DATABASE_URL SUPABASE_DB_URL/);
 });
 
+test('local rehearsal can discover common Mac PostgreSQL installations', () => {
+  assert.match(script, /pg_config --bindir/);
+  assert.match(script, /brew list --formula/);
+  assert.match(script, /Postgres\.app\/Contents\/Versions/);
+  assert.match(script, /\/Library\/PostgreSQL\/\*\/bin/);
+  assert.match(script, /mdfind "kMDItemFSName == 'initdb'"/);
+});
+
 test('local rehearsal runs all three existing jury integration suites', () => {
   for (const path of [
     'test/sql/jury-assignment-guard-integration.sql',
