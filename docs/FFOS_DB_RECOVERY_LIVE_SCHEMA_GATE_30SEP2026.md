@@ -1,8 +1,8 @@
 # FFOS™ — Database Recovery + Live-Schema Verification Gate
 ## Supervisor Batch 02 · 30 September 2026
 
-**Target project ref:** `htvmmciewewcdavgsdxe`  
-**Release candidate baseline:** `12e42169274800d5356899ddd523c1176bbb1496`  
+**Target project ref:** `htvmmciewewcdavgsdxe`
+**Release candidate baseline:** `12e42169274800d5356899ddd523c1176bbb1496`
 **Production decision:** HOLD until every required evidence item below is recorded.
 
 This pack verifies evidence only. It does **not** apply migrations 095/096, restore a database, change memberships, expose juror content, process payments, or deploy the app.
