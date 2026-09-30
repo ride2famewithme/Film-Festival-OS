@@ -1,8 +1,8 @@
 # Film Festival OS™ + Franchise — Supervisor batch 01
 
-**Date:** 30 September 2026  
-**Target:** `ci/ffos-release-candidate-22sep2026`  
-**Baseline:** `690c4c391d09654161689727455ae983b7c74b4a`  
+**Date:** 30 September 2026
+**Target:** `ci/ffos-release-candidate-22sep2026`
+**Baseline:** `690c4c391d09654161689727455ae983b7c74b4a`
 **Mode:** isolated source changes, deterministic CI, no production mutations.
 
 ## Four-milestone batch
